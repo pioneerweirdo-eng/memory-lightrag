@@ -1,0 +1,14 @@
+[
+  {"id":"q1","q":"What is HippoRAG?"},
+  {"id":"q2","q":"What is RAPTOR and why is it tree-structured?"},
+  {"id":"q3","q":"What is GraphRAG (in general) and what problem does it solve?"},
+  {"id":"q4","q":"How does HippoRAG perform multi-hop retrieval?"},
+  {"id":"q5","q":"What is Personalized PageRank (PPR) used for in HippoRAG?"},
+  {"id":"q6","q":"Compare HippoRAG vs RAPTOR in terms of indexing and retrieval."},
+  {"id":"q7","q":"What are the limitations of OpenIE mentioned in HippoRAG?"},
+  {"id":"q8","q":"What is the role of community summaries in GraphRAG-style systems?"},
+  {"id":"q9","q":"What does the GraphRAG survey say about explainability or privacy?"},
+  {"id":"q10","q":"What datasets are used to evaluate HippoRAG?"},
+  {"id":"q11","q":"What is the 'concepts vs context tradeoff' in HippoRAG error analysis?"},
+  {"id":"q12","q":"Why can adjacency / document-structure graphs help RAG?"}
+]

@@ -1,0 +1,910 @@
+{
+  "schemaVersion": 1,
+  "ranAt": "2026-03-11T13:26:09.972Z",
+  "index": "clean",
+  "params": {
+    "topK": 8,
+    "seedK": 5,
+    "expandK": 6,
+    "minEntityHits": 2,
+    "maxExpandChars": 2000
+  },
+  "results": [
+    {
+      "id": "q1",
+      "q": "What is HippoRAG?",
+      "baseline": {
+        "chunks": 12,
+        "uniqDocs": 1,
+        "expanded": 6,
+        "ctxLen": 7466
+      },
+      "graph": {
+        "chunks": 10,
+        "uniqDocs": 1,
+        "expanded": 5,
+        "ctxLen": 5652
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_cf275ddf1256f946",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 64,
+            "end": 67,
+            "score": 72.04136991978432,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_a88cb65a34b2803d",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 218,
+            "end": 253,
+            "score": 59.0039504696763,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_d15dc73c736e7c2b",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 254,
+            "end": 269,
+            "score": 40.55870615555403,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_cf275ddf1256f946",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 64,
+            "end": 67,
+            "score": 72.04136991978432,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_a88cb65a34b2803d",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 218,
+            "end": 253,
+            "score": 59.0039504696763,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_d15dc73c736e7c2b",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 254,
+            "end": 269,
+            "score": 40.55870615555403,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=4 neighbor; ents=OpenIE,PPR,MuSiQue)",
+          "expanded(shared_entities=3; ents=PPR,MuSiQue,ColBERTv2)",
+          "expanded(shared_entities=2 neighbor; ents=HippoRAG)"
+        ]
+      }
+    },
+    {
+      "id": "q2",
+      "q": "What is RAPTOR and why is it tree-structured?",
+      "baseline": {
+        "chunks": 9,
+        "uniqDocs": 2,
+        "expanded": 3,
+        "ctxLen": 9873
+      },
+      "graph": {
+        "chunks": 8,
+        "uniqDocs": 2,
+        "expanded": 3,
+        "ctxLen": 9193
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_2c9b0fd593d0fc4c",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 39,
+            "end": 43,
+            "score": 307.18219138489394,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_a4b900c17faafbe6",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 33,
+            "end": 38,
+            "score": 285.2288459006482,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_b60fd7a3d1f6d3ed",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 7,
+            "end": 10,
+            "score": 262.6487622926193,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_2c9b0fd593d0fc4c",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 39,
+            "end": 43,
+            "score": 307.18219138489394,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_a4b900c17faafbe6",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 33,
+            "end": 38,
+            "score": 285.2288459006482,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_b60fd7a3d1f6d3ed",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 7,
+            "end": 10,
+            "score": 262.6487622926193,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=3 neighbor; ents=RAPTOR,NarrativeQA)",
+          "expanded(shared_entities=2; ents=DPR,NarrativeQA)",
+          "expanded(shared_entities=2; ents=OpenIE,MuSiQue)"
+        ]
+      }
+    },
+    {
+      "id": "q3",
+      "q": "What is GraphRAG (in general) and what problem does it solve?",
+      "baseline": {
+        "chunks": 11,
+        "uniqDocs": 3,
+        "expanded": 5,
+        "ctxLen": 10438
+      },
+      "graph": {
+        "chunks": 8,
+        "uniqDocs": 3,
+        "expanded": 3,
+        "ctxLen": 9664
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_064b91f31d51e56b",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 47,
+            "end": 54,
+            "score": 347.0119717867725,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_55a3bdfbf7fbb265",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 85,
+            "end": 90,
+            "score": 340.8527229925781,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_c84bb945315baf41",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 150,
+            "end": 152,
+            "score": 325.2591582572135,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_064b91f31d51e56b",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 47,
+            "end": 54,
+            "score": 347.0119717867725,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_55a3bdfbf7fbb265",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 85,
+            "end": 90,
+            "score": 340.8527229925781,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_c84bb945315baf41",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 150,
+            "end": 152,
+            "score": 325.2591582572135,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=3 neighbor; ents=ColBERTv2,HippoRAG)",
+          "expanded(shared_entities=3; ents=RAPTOR,ColBERTv2,HippoRAG)",
+          "expanded(shared_entities=2 neighbor; ents=RAPTOR)"
+        ]
+      }
+    },
+    {
+      "id": "q4",
+      "q": "How does HippoRAG perform multi-hop retrieval?",
+      "baseline": {
+        "chunks": 11,
+        "uniqDocs": 3,
+        "expanded": 5,
+        "ctxLen": 7220
+      },
+      "graph": {
+        "chunks": 8,
+        "uniqDocs": 2,
+        "expanded": 3,
+        "ctxLen": 4205
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_8ad12aa985c171ed",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 68,
+            "end": 71,
+            "score": 321.0767132355036,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_bde10849cc26231d",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 9,
+            "end": 12,
+            "score": 266.44717155145344,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_c4b4ad734573f79b",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 141,
+            "end": 143,
+            "score": 232.92598054273037,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_8ad12aa985c171ed",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 68,
+            "end": 71,
+            "score": 321.0767132355036,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_bde10849cc26231d",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 9,
+            "end": 12,
+            "score": 266.44717155145344,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_c4b4ad734573f79b",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 141,
+            "end": 143,
+            "score": 232.92598054273037,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=3 neighbor; ents=HippoRAG,PPR)",
+          "expanded(shared_entities=2 neighbor; ents=GraphRAG)",
+          "expanded(shared_entities=2 neighbor; ents=HippoRAG)"
+        ]
+      }
+    },
+    {
+      "id": "q5",
+      "q": "What is Personalized PageRank (PPR) used for in HippoRAG?",
+      "baseline": {
+        "chunks": 11,
+        "uniqDocs": 3,
+        "expanded": 5,
+        "ctxLen": 8154
+      },
+      "graph": {
+        "chunks": 10,
+        "uniqDocs": 3,
+        "expanded": 5,
+        "ctxLen": 7383
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_3918c0c52be54a9e",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 5,
+            "end": 8,
+            "score": 475.9739379471864,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_cf275ddf1256f946",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 64,
+            "end": 67,
+            "score": 249.72800930213035,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_b8a60a99dd65eefe",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 186,
+            "end": 193,
+            "score": 231.8799985743006,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_3918c0c52be54a9e",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 5,
+            "end": 8,
+            "score": 475.9739379471864,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_cf275ddf1256f946",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 64,
+            "end": 67,
+            "score": 249.72800930213035,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_b8a60a99dd65eefe",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 186,
+            "end": 193,
+            "score": 231.8799985743006,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=5 neighbor; ents=PPR,OpenIE,MuSiQue,NER)",
+          "expanded(shared_entities=3 neighbor; ents=PPR,HippoRAG)",
+          "expanded(shared_entities=2 neighbor; ents=HippoRAG)"
+        ]
+      }
+    },
+    {
+      "id": "q6",
+      "q": "Compare HippoRAG vs RAPTOR in terms of indexing and retrieval.",
+      "baseline": {
+        "chunks": 11,
+        "uniqDocs": 2,
+        "expanded": 5,
+        "ctxLen": 9832
+      },
+      "graph": {
+        "chunks": 10,
+        "uniqDocs": 2,
+        "expanded": 5,
+        "ctxLen": 8564
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_2c9b0fd593d0fc4c",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 39,
+            "end": 43,
+            "score": 333.30363594329083,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_3918c0c52be54a9e",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 5,
+            "end": 8,
+            "score": 305.17323060367914,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_9fcbe1b440c0a65f",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 212,
+            "end": 217,
+            "score": 272.6352771168075,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_2c9b0fd593d0fc4c",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 39,
+            "end": 43,
+            "score": 333.30363594329083,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_3918c0c52be54a9e",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 5,
+            "end": 8,
+            "score": 305.17323060367914,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_9fcbe1b440c0a65f",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 212,
+            "end": 217,
+            "score": 272.6352771168075,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=3; ents=RAPTOR,ColBERTv2,HippoRAG)",
+          "expanded(shared_entities=2; ents=PPR,HippoRAG)",
+          "expanded(shared_entities=2 neighbor; ents=PPR)"
+        ]
+      }
+    },
+    {
+      "id": "q7",
+      "q": "What are the limitations of OpenIE mentioned in HippoRAG?",
+      "baseline": {
+        "chunks": 12,
+        "uniqDocs": 2,
+        "expanded": 6,
+        "ctxLen": 9435
+      },
+      "graph": {
+        "chunks": 10,
+        "uniqDocs": 2,
+        "expanded": 5,
+        "ctxLen": 7364
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_b8a60a99dd65eefe",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 186,
+            "end": 193,
+            "score": 402.0761230104523,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_d15dc73c736e7c2b",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 254,
+            "end": 269,
+            "score": 342.9501103352064,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_392320769586970f",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 278,
+            "end": 311,
+            "score": 267.7303350640699,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_b8a60a99dd65eefe",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 186,
+            "end": 193,
+            "score": 402.0761230104523,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_d15dc73c736e7c2b",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 254,
+            "end": 269,
+            "score": 342.9501103352064,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_392320769586970f",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 278,
+            "end": 311,
+            "score": 267.7303350640699,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=5 neighbor; ents=MuSiQue,OpenIE,NER,PPR)",
+          "expanded(shared_entities=2 neighbor; ents=HippoRAG)",
+          "expanded(shared_entities=2; ents=HippoRAG,PPR)"
+        ]
+      }
+    },
+    {
+      "id": "q8",
+      "q": "What is the role of community summaries in GraphRAG-style systems?",
+      "baseline": {
+        "chunks": 11,
+        "uniqDocs": 2,
+        "expanded": 5,
+        "ctxLen": 16158
+      },
+      "graph": {
+        "chunks": 8,
+        "uniqDocs": 2,
+        "expanded": 2,
+        "ctxLen": 12397
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_aa7bc25f6e52d667",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 65,
+            "end": 68,
+            "score": 389.23764200107405,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_c84bb945315baf41",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 150,
+            "end": 152,
+            "score": 341.5149124278503,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_064b91f31d51e56b",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 47,
+            "end": 54,
+            "score": 317.7269253963126,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_aa7bc25f6e52d667",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 65,
+            "end": 68,
+            "score": 389.23764200107405,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_c84bb945315baf41",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 150,
+            "end": 152,
+            "score": 341.5149124278503,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_064b91f31d51e56b",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 47,
+            "end": 54,
+            "score": 317.7269253963126,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=2 neighbor; ents=GraphRAG)",
+          "expanded(shared_entities=2 neighbor; ents=GraphRAG)"
+        ]
+      }
+    },
+    {
+      "id": "q9",
+      "q": "What does the GraphRAG survey say about explainability or privacy?",
+      "baseline": {
+        "chunks": 10,
+        "uniqDocs": 3,
+        "expanded": 4,
+        "ctxLen": 14459
+      },
+      "graph": {
+        "chunks": 8,
+        "uniqDocs": 3,
+        "expanded": 2,
+        "ctxLen": 11895
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_c84bb945315baf41",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 150,
+            "end": 152,
+            "score": 228.79379624112826,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_064b91f31d51e56b",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 47,
+            "end": 54,
+            "score": 220.41346172597696,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_40323cb0f581bccc",
+            "path": "projects/graphrag/docs/papers_clean/GraphRAG_survey_2408.08921.md",
+            "start": 17,
+            "end": 18,
+            "score": 204.5792035329942,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_c84bb945315baf41",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 150,
+            "end": 152,
+            "score": 228.79379624112826,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_064b91f31d51e56b",
+            "path": "projects/graphrag/docs/papers_clean/RAPTOR_2401.18059.md",
+            "start": 47,
+            "end": 54,
+            "score": 220.41346172597696,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_40323cb0f581bccc",
+            "path": "projects/graphrag/docs/papers_clean/GraphRAG_survey_2408.08921.md",
+            "start": 17,
+            "end": 18,
+            "score": 204.5792035329942,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=2 neighbor; ents=GraphRAG)",
+          "expanded(shared_entities=2 neighbor; ents=GraphRAG)"
+        ]
+      }
+    },
+    {
+      "id": "q10",
+      "q": "What datasets are used to evaluate HippoRAG?",
+      "baseline": {
+        "chunks": 12,
+        "uniqDocs": 2,
+        "expanded": 6,
+        "ctxLen": 7872
+      },
+      "graph": {
+        "chunks": 10,
+        "uniqDocs": 2,
+        "expanded": 5,
+        "ctxLen": 5094
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_3e76147cfa97a491",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 106,
+            "end": 121,
+            "score": 166.3108534860123,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_cf275ddf1256f946",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 64,
+            "end": 67,
+            "score": 161.06804356833857,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_957c03a6cebd7978",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 32,
+            "end": 35,
+            "score": 153.86254815960928,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_3e76147cfa97a491",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 106,
+            "end": 121,
+            "score": 166.3108534860123,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_cf275ddf1256f946",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 64,
+            "end": 67,
+            "score": 161.06804356833857,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_957c03a6cebd7978",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 32,
+            "end": 35,
+            "score": 153.86254815960928,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=3 neighbor; ents=HippoRAG,ColBERTv2)",
+          "expanded(shared_entities=3; ents=ColBERTv2,PPR,MuSiQue)",
+          "expanded(shared_entities=3; ents=HippoRAG,MuSiQue,HotpotQA)"
+        ]
+      }
+    },
+    {
+      "id": "q11",
+      "q": "What is the 'concepts vs context tradeoff' in HippoRAG error analysis?",
+      "baseline": {
+        "chunks": 12,
+        "uniqDocs": 2,
+        "expanded": 6,
+        "ctxLen": 9518
+      },
+      "graph": {
+        "chunks": 10,
+        "uniqDocs": 2,
+        "expanded": 5,
+        "ctxLen": 7704
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_9fcbe1b440c0a65f",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 212,
+            "end": 217,
+            "score": 1022.1348735158025,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_b8a60a99dd65eefe",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 186,
+            "end": 193,
+            "score": 453.0526758566764,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_a88cb65a34b2803d",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 218,
+            "end": 253,
+            "score": 425.18166823039303,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_9fcbe1b440c0a65f",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 212,
+            "end": 217,
+            "score": 1022.1348735158025,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_b8a60a99dd65eefe",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 186,
+            "end": 193,
+            "score": 453.0526758566764,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_a88cb65a34b2803d",
+            "path": "projects/graphrag/docs/papers_clean/HippoRAG_2405.14831.md",
+            "start": 218,
+            "end": 253,
+            "score": 425.18166823039303,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=6 neighbor; ents=MuSiQue,OpenIE,NER,PPR)",
+          "expanded(shared_entities=3; ents=HippoRAG,OpenIE,PPR)",
+          "expanded(shared_entities=3; ents=ColBERTv2,HippoRAG,RAPTOR)"
+        ]
+      }
+    },
+    {
+      "id": "q12",
+      "q": "Why can adjacency / document-structure graphs help RAG?",
+      "baseline": {
+        "chunks": 8,
+        "uniqDocs": 1,
+        "expanded": 2,
+        "ctxLen": 12972
+      },
+      "graph": {
+        "chunks": 8,
+        "uniqDocs": 1,
+        "expanded": 1,
+        "ctxLen": 11921
+      },
+      "sample": {
+        "baselineTop": [
+          {
+            "chunkId": "c_2bcebc506a3f0ed1",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 33,
+            "end": 36,
+            "score": 278.443544243805,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_dd3698e3c543024b",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 21,
+            "end": 28,
+            "score": 215.91417856875927,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_449093b12004f728",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 206,
+            "end": 215,
+            "score": 205.70950694008496,
+            "why": "seed"
+          }
+        ],
+        "graphTop": [
+          {
+            "chunkId": "c_2bcebc506a3f0ed1",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 33,
+            "end": 36,
+            "score": 278.443544243805,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_dd3698e3c543024b",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 21,
+            "end": 28,
+            "score": 215.91417856875927,
+            "why": "seed"
+          },
+          {
+            "chunkId": "c_449093b12004f728",
+            "path": "projects/graphrag/docs/papers_clean/RAG_with_Graphs_2501.00309.md",
+            "start": 206,
+            "end": 215,
+            "score": 205.70950694008496,
+            "why": "seed"
+          }
+        ],
+        "graphExpandedWhy": [
+          "expanded(shared_entities=2 neighbor; ents=)"
+        ]
+      }
+    }
+  ]
+}

@@ -324,13 +324,31 @@ async function buildIndex({ workspace, sandboxDir, indexId, docsDir, maxChunkCha
   const entityDf = {};
   for (const [e, cids] of entityToChunks.entries()) entityDf[e] = cids.length;
 
+  // Build deterministic neighbor links within each document (DocGraph adjacency).
+  const docToChunkIds = new Map();
+  for (const c of chunks) {
+    if (!docToChunkIds.has(c.path)) docToChunkIds.set(c.path, []);
+    docToChunkIds.get(c.path).push({ chunkId: c.chunkId, startLine: c.startLine });
+  }
+  const neighbors = {};
+  for (const [p, arr] of docToChunkIds.entries()) {
+    arr.sort((a, b) => a.startLine - b.startLine);
+    for (let i = 0; i < arr.length; i++) {
+      const prev = i > 0 ? arr[i - 1].chunkId : null;
+      const next = i + 1 < arr.length ? arr[i + 1].chunkId : null;
+      neighbors[arr[i].chunkId] = [prev, next].filter(Boolean);
+    }
+  }
+
   const entitiesArtifact = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     builtAt: new Date().toISOString(),
     entityCount: entityToChunks.size,
     entityDf,
     entityToChunks: Object.fromEntries(entityToChunks),
     chunkToEntities: Object.fromEntries(chunkToEntities),
+    // DocGraph adjacency edges (deterministic, no LLM)
+    neighbors,
   };
 
   // Persist
@@ -429,7 +447,7 @@ async function loadIndex({ workspace, sandboxDir, indexId }) {
   return { manifest, miniSearch, byId, entities };
 }
 
-async function queryIndex({ workspace, sandboxDir, indexId, question, topK, pathContains, graph, seedK, expandK, minEntityHits }) {
+async function queryIndex({ workspace, sandboxDir, indexId, question, topK, pathContains, graph, seedK, expandK, minEntityHits, maxExpandChars }) {
   const t0 = Date.now();
   const { manifest, miniSearch, byId, entities } = await loadIndex({ workspace, sandboxDir, indexId });
   const tLoad = Date.now();
@@ -440,6 +458,7 @@ async function queryIndex({ workspace, sandboxDir, indexId, question, topK, path
   const kSeed = Number(seedK || Math.min(6, topK));
   const kExpand = Number(expandK || Math.min(6, topK));
   const minHits = Number(minEntityHits || 2);
+  const expandBudgetChars = Number(maxExpandChars || 6000);
 
   // Search wider then filter; keeps the filtering feature simple.
   const hits = miniSearch.search(question, { limit: Math.max(topK * 10, topK) });
@@ -455,11 +474,18 @@ async function queryIndex({ workspace, sandboxDir, indexId, question, topK, path
     seeds.push({ hit: h, chunk: c });
   }
 
-  // 2) graph expand (entity -> chunks)
+  // 2) graph expand (entity -> chunks + doc neighbors)
   const expanded = [];
   const expandedWhy = new Map();
 
+  // Precompute lexical scores for tie-break / matching quality.
+  const lexHits = miniSearch.search(question, { limit: Math.max(topK * 50, 200) });
+  const lexScoreById = new Map(lexHits.map(h => [h.id, h.score]));
+  const maxLex = Math.max(1, ...lexHits.map(h => h.score || 0));
+
   if (useGraph) {
+    const seedIds = new Set(seeds.map(s => s.chunk.chunkId));
+
     const seedEntities = new Set();
     for (const s of seeds) {
       const ents = entities.chunkToEntities[s.chunk.chunkId] || [];
@@ -468,27 +494,98 @@ async function queryIndex({ workspace, sandboxDir, indexId, question, topK, path
 
     // score candidate chunks by how many seed entities they share
     const candScores = new Map();
+    const candWhyEntities = new Map(); // cid -> Set(entity)
+
     for (const e of seedEntities) {
       const chunkIds = entities.entityToChunks[e] || [];
       for (const cid of chunkIds) {
-        // skip seeds
-        if (seeds.some(s => s.chunk.chunkId === cid)) continue;
+        if (seedIds.has(cid)) continue;
         candScores.set(cid, (candScores.get(cid) || 0) + 1);
+        if (!candWhyEntities.has(cid)) candWhyEntities.set(cid, new Set());
+        candWhyEntities.get(cid).add(e);
       }
     }
 
-    // rank candidates: highest shared-entity count first
-    const ranked = [...candScores.entries()]
-      .filter(([, score]) => score >= minHits)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, kExpand);
+    // Add DocGraph neighbors (deterministic, good for "local" evidence)
+    const neigh = entities.neighbors || {};
+    for (const s of seeds) {
+      const ns = neigh[s.chunk.chunkId] || [];
+      for (const cid of ns) {
+        if (seedIds.has(cid)) continue;
+        candScores.set(cid, (candScores.get(cid) || 0) + 1);
+        if (!candWhyEntities.has(cid)) candWhyEntities.set(cid, new Set());
+        candWhyEntities.get(cid).add('__neighbor__');
+      }
+    }
 
-    for (const [cid, score] of ranked) {
-      const c = byId.get(cid);
-      if (!c) continue;
-      if (want && !String(c.path).toLowerCase().includes(want)) continue;
-      expanded.push({ chunk: c, score });
-      expandedWhy.set(cid, `expanded(shared_entities=${score})`);
+    // Candidate list (widened); we'll select with a budgeted knapsack.
+    const candidates = [...candScores.entries()]
+      .filter(([, score]) => score >= minHits)
+      .map(([cid, shared]) => {
+        const c = byId.get(cid);
+        if (!c) return null;
+        if (want && !String(c.path).toLowerCase().includes(want)) return null;
+        const lex = (lexScoreById.get(cid) || 0) / maxLex;
+        const whyEnts = [...(candWhyEntities.get(cid) || new Set())];
+        const neighborBonus = whyEnts.includes('__neighbor__') ? 0.5 : 0;
+        const value = shared * 1.0 + lex * 1.2 + neighborBonus;
+        const cost = Math.min(2000, (c.text || '').length + 80);
+        return { cid, chunk: c, shared, lex, value, cost, whyEnts };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, Math.max(kExpand * 20, 120));
+
+    // -----------------------------
+    // Budgeted selection (0/1 knapsack DP) over small candidates.
+    // We discretize char budget to keep DP small.
+    // -----------------------------
+    const UNIT = 200; // chars per unit
+    const B = Math.max(1, Math.floor(expandBudgetChars / UNIT));
+    const n = candidates.length;
+
+    // dp[b] = best score, take[b] = bitset as predecessor pointers (store prev b and chosen idx)
+    const dp = new Array(B + 1).fill(-1);
+    const prevB = new Array(B + 1).fill(-1);
+    const prevI = new Array(B + 1).fill(-1);
+    dp[0] = 0;
+
+    for (let i = 0; i < n; i++) {
+      const w = Math.max(1, Math.ceil(candidates[i].cost / UNIT));
+      const v = candidates[i].value;
+      for (let b = B; b >= w; b--) {
+        const cand = dp[b - w];
+        if (cand < 0) continue;
+        const nv = cand + v;
+        if (nv > dp[b]) {
+          dp[b] = nv;
+          prevB[b] = b - w;
+          prevI[b] = i;
+        }
+      }
+    }
+
+    // pick best b
+    let bestB = 0;
+    for (let b = 1; b <= B; b++) if (dp[b] > dp[bestB]) bestB = b;
+
+    const chosen = [];
+    const used = new Set();
+    for (let b = bestB; b > 0 && prevI[b] !== -1; ) {
+      const i = prevI[b];
+      if (!used.has(i)) {
+        chosen.push(candidates[i]);
+        used.add(i);
+      }
+      b = prevB[b];
+    }
+
+    chosen.sort((a, b) => b.value - a.value);
+    for (const it of chosen.slice(0, kExpand)) {
+      expanded.push({ chunk: it.chunk, score: it.shared });
+      const ents = it.whyEnts.filter(e => e !== '__neighbor__');
+      const extra = it.whyEnts.includes('__neighbor__') ? ' neighbor' : '';
+      expandedWhy.set(it.cid, `expanded(shared_entities=${it.shared}${extra}; ents=${ents.slice(0,6).join(',')})`);
     }
   }
 
@@ -615,6 +712,7 @@ async function main() {
       seedK: args.seedK,
       expandK: args.expandK,
       minEntityHits: args.minEntityHits,
+      maxExpandChars: args.maxExpandChars,
     });
     process.stdout.write(JSON.stringify(out, null, 2));
     return;
