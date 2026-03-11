@@ -178,7 +178,7 @@ async function main() {
 
   // Token budget: keep input well under 32768 for Qwen2.5-7B.
   // We approximate tokens by chars/4 and keep generous margin.
-  const MAX_INPUT_TOKENS = 24000;
+  const MAX_INPUT_TOKENS = 18000;
   const MAX_SEG_CHARS = MAX_INPUT_TOKENS * 4; // rough
 
   for (const fp of files) {
