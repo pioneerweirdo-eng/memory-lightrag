@@ -112,6 +112,10 @@ function normalizeModelOutput(s) {
   return out ? (out.endsWith('\n') ? out : out + '\n') : '';
 }
 
+async function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
 async function callChat({ baseUrl, apiKey, model, systemPrompt, userText }) {
   const url = baseUrl.replace(/\/$/, '') + '/chat/completions';
   const payload = {
@@ -124,23 +128,37 @@ async function callChat({ baseUrl, apiKey, model, systemPrompt, userText }) {
     ]
   };
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const maxAttempts = 6;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
 
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${text.slice(0, 300)}`);
+    const text = await res.text();
+
+    // Retry transient upstream errors.
+    if (!res.ok) {
+      const retryable = [429, 500, 502, 503, 504].includes(res.status);
+      if (retryable && attempt < maxAttempts) {
+        const backoff = Math.min(15000, 400 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
+        await sleep(backoff);
+        continue;
+      }
+      throw new Error(`HTTP ${res.status} ${res.statusText}: ${text.slice(0, 300)}`);
+    }
+
+    const j = JSON.parse(text);
+    const content = j?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('No content in response');
+    return normalizeModelOutput(content);
   }
-  const j = JSON.parse(text);
-  const content = j?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('No content in response');
-  return normalizeModelOutput(content);
+
+  throw new Error('Exhausted retries');
 }
 
 async function main() {
@@ -180,8 +198,15 @@ async function main() {
       'INPUT_END'
     ].join('\n');
 
+    // Skip if already cleaned (resume-friendly)
+    try {
+      await fs.access(outPath);
+      console.error(`skip (exists): ${name}`);
+      continue;
+    } catch {}
+
     const cleaned = await callChat({ baseUrl, apiKey, model, systemPrompt, userText });
-    await fs.writeFile(outPath, cleaned.endsWith('\n') ? cleaned : cleaned + '\n', 'utf8');
+    await fs.writeFile(outPath, cleaned, 'utf8');
     console.error(`cleaned: ${name} -> ${path.relative(process.cwd(), outPath)}`);
   }
 }
