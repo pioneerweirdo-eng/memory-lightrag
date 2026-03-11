@@ -1,0 +1,10 @@
+{
+  "note": "Scan results produced by projects/graphrag/tools/scan_models.py. Key redacted.",
+  "base": "https://china.184772.xyz/v1",
+  "count": 12,
+  "results_path": "/tmp/scan_results.json (not in repo)",
+  "summary": {
+    "ok_models": ["gpt-5.2", "gpt-5.2-codex", "LongCat-Flash-Lite"],
+    "error_codes": {"401": 3, "429": 3, "502": 3}
+  }
+}
