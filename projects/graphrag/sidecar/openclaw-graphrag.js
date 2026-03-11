@@ -174,7 +174,12 @@ async function buildIndex({ workspace, sandboxDir, indexId, docsDir, maxChunkCha
 
   const indicesDir = path.join(absSandbox, 'indices');
   const indexDir = path.join(indicesDir, indexId);
-  const stagingDir = path.join(indexDir, 'staging');
+
+  // Release-based indexing (atomic activate via pointer switch)
+  const releasesDir = path.join(indexDir, 'releases');
+  const releaseName = new Date().toISOString().replace(/[:.]/g, '-');
+  const stagingDir = path.join(releasesDir, `${releaseName}.staging`);
+  const releaseDir = path.join(releasesDir, releaseName);
 
   await ensureDir(stagingDir);
 
@@ -316,24 +321,35 @@ async function buildIndex({ workspace, sandboxDir, indexId, docsDir, maxChunkCha
   await writeJsonAtomic(path.join(stagingDir, 'entities.json'), entitiesArtifact);
   await writeJsonAtomic(path.join(stagingDir, 'manifest.json'), manifest);
 
-  // Atomic activate: replace active dir contents by moving staging -> active
-  // We keep last manifest as backup.
-  const activeManifest = path.join(indexDir, 'manifest.json');
+  // -----------------------------
+  // Atomic activate (release pointer switch)
+  // -----------------------------
   const backupDir = path.join(indexDir, 'backup');
   await ensureDir(backupDir);
 
-  if (fs.existsSync(activeManifest)) {
-    const stamp = Date.now();
-    const prev = path.join(backupDir, `manifest-${stamp}.json`);
-    await fsp.copyFile(activeManifest, prev);
-  }
-
-  // Move staging contents into indexDir
+  // 1) finalize release dir
+  await ensureDir(releaseDir);
   for (const name of ['chunks.json', 'minisearch.json', 'entities.json', 'manifest.json']) {
-    await fsp.rename(path.join(stagingDir, name), path.join(indexDir, name));
+    await fsp.rename(path.join(stagingDir, name), path.join(releaseDir, name));
+  }
+  // best-effort remove empty staging dir
+  try { await fsp.rmdir(stagingDir); } catch {}
+
+  // 2) write current pointer atomically
+  const currentPath = path.join(indexDir, 'current.json');
+  if (fs.existsSync(currentPath)) {
+    const stamp = Date.now();
+    await fsp.copyFile(currentPath, path.join(backupDir, `current-${stamp}.json`));
   }
 
-  return manifest;
+  await writeJsonAtomic(currentPath, {
+    schemaVersion: 1,
+    indexId,
+    release: releaseName,
+    updatedAt: new Date().toISOString(),
+  });
+
+  return { ...manifest, release: releaseName };
 }
 
 async function loadIndex({ workspace, sandboxDir, indexId }) {
@@ -341,11 +357,21 @@ async function loadIndex({ workspace, sandboxDir, indexId }) {
   const absSandbox = path.resolve(absWorkspace, sandboxDir);
   const indexDir = path.join(absSandbox, 'indices', indexId);
 
-  const manifestPath = path.join(indexDir, 'manifest.json');
+  // Resolve active release
+  let activeDir = indexDir;
+  const currentPath = path.join(indexDir, 'current.json');
+  if (fs.existsSync(currentPath)) {
+    const cur = JSON.parse(await fsp.readFile(currentPath, 'utf8'));
+    if (cur?.release) {
+      activeDir = path.join(indexDir, 'releases', cur.release);
+    }
+  }
+
+  const manifestPath = path.join(activeDir, 'manifest.json');
   const manifest = JSON.parse(await fsp.readFile(manifestPath, 'utf8'));
-  const chunks = JSON.parse(await fsp.readFile(path.join(indexDir, manifest.artifacts.chunks), 'utf8'));
-  const msJsonText = await fsp.readFile(path.join(indexDir, manifest.artifacts.minisearch), 'utf8');
-  const entitiesPath = manifest.artifacts?.entities ? path.join(indexDir, manifest.artifacts.entities) : null;
+  const chunks = JSON.parse(await fsp.readFile(path.join(activeDir, manifest.artifacts.chunks), 'utf8'));
+  const msJsonText = await fsp.readFile(path.join(activeDir, manifest.artifacts.minisearch), 'utf8');
+  const entitiesPath = manifest.artifacts?.entities ? path.join(activeDir, manifest.artifacts.entities) : null;
   const entities = entitiesPath && fs.existsSync(entitiesPath)
     ? JSON.parse(await fsp.readFile(entitiesPath, 'utf8'))
     : null;
@@ -373,7 +399,7 @@ async function queryIndex({ workspace, sandboxDir, indexId, question, topK, path
 
   const want = (pathContains && String(pathContains).trim()) ? String(pathContains).trim().toLowerCase() : null;
 
-  const useGraph = Boolean(graph) && entities && entities.entityToChunks && entities.chunkToEntities;
+  const useGraph = Boolean(graph) && Boolean(entities && entities.entityToChunks && entities.chunkToEntities);
   const kSeed = Number(seedK || Math.min(6, topK));
   const kExpand = Number(expandK || Math.min(6, topK));
   const minHits = Number(minEntityHits || 2);
