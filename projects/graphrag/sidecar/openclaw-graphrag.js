@@ -223,6 +223,74 @@ async function buildIndex({ workspace, sandboxDir, indexId, docsDir, maxChunkCha
     text: c.text,
   })));
 
+  // -----------------------------
+  // Entity extraction (GraphRAG v0)
+  // -----------------------------
+  // Minimal, rules-only entity extraction to support 1-hop expansion.
+  function normalizeEntity(s) {
+    return String(s)
+      .trim()
+      .replace(/^[#\-\*\s]+/, '')
+      .replace(/[\s\.,;:()\[\]{}<>"'`]+$/g, '')
+      .slice(0, 80);
+  }
+
+  function extractEntities(text) {
+    const ents = new Set();
+    const t = String(text || '');
+
+    // Model-like ids: Foo/Bar-Baz
+    for (const m of t.matchAll(/\b[A-Z][A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]{3,}\b/g)) {
+      ents.add(normalizeEntity(m[0]));
+    }
+
+    // CamelCase / PascalCase words (GraphRAG, HippoRAG, DeepSeek)
+    for (const m of t.matchAll(/\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+\b/g)) {
+      ents.add(normalizeEntity(m[0]));
+    }
+
+    // All-caps tokens length>=3 (RAG, LLM, RAPTOR)
+    for (const m of t.matchAll(/\b[A-Z]{3,}(?:-[A-Z0-9]{2,})?\b/g)) {
+      ents.add(normalizeEntity(m[0]));
+    }
+
+    // Headings: take the heading line as a weak entity (first 60 chars)
+    for (const line of t.split(/\r?\n/)) {
+      const hm = line.match(/^#{1,6}\s+(.{3,})$/);
+      if (hm) ents.add(normalizeEntity(hm[1].slice(0, 60)));
+    }
+
+    // Filter obvious junk
+    const out = [...ents]
+      .filter(Boolean)
+      .filter(e => e.length >= 3)
+      .filter(e => !/^source$/i.test(e))
+      .filter(e => !/^input_(start|end)$/i.test(e));
+
+    // Cap per chunk
+    return out.slice(0, 50);
+  }
+
+  const entityToChunks = new Map();
+  const chunkToEntities = new Map();
+  for (const c of chunks) {
+    const ents = extractEntities(c.text);
+    chunkToEntities.set(c.chunkId, ents);
+    for (const e of ents) {
+      const key = e;
+      if (!entityToChunks.has(key)) entityToChunks.set(key, []);
+      entityToChunks.get(key).push(c.chunkId);
+    }
+  }
+
+  const entitiesArtifact = {
+    schemaVersion: 1,
+    builtAt: new Date().toISOString(),
+    entityCount: entityToChunks.size,
+    entityToChunks: Object.fromEntries(entityToChunks),
+    chunkToEntities: Object.fromEntries(chunkToEntities),
+  };
+
   // Persist
   const manifest = {
     schemaVersion: 1,
@@ -233,16 +301,19 @@ async function buildIndex({ workspace, sandboxDir, indexId, docsDir, maxChunkCha
     stats: {
       files: files.length,
       chunks: chunks.length,
+      entities: entityToChunks.size,
     },
     artifacts: {
       chunks: 'chunks.json',
       minisearch: 'minisearch.json',
+      entities: 'entities.json',
     },
   };
 
   await writeJsonAtomic(path.join(stagingDir, 'chunks.json'), chunks);
   // MiniSearch.toJSON() returns a plain object; MiniSearch.loadJSON expects a JSON string.
   await writeTextAtomic(path.join(stagingDir, 'minisearch.json'), JSON.stringify(miniSearch.toJSON()));
+  await writeJsonAtomic(path.join(stagingDir, 'entities.json'), entitiesArtifact);
   await writeJsonAtomic(path.join(stagingDir, 'manifest.json'), manifest);
 
   // Atomic activate: replace active dir contents by moving staging -> active
@@ -258,7 +329,7 @@ async function buildIndex({ workspace, sandboxDir, indexId, docsDir, maxChunkCha
   }
 
   // Move staging contents into indexDir
-  for (const name of ['chunks.json', 'minisearch.json', 'manifest.json']) {
+  for (const name of ['chunks.json', 'minisearch.json', 'entities.json', 'manifest.json']) {
     await fsp.rename(path.join(stagingDir, name), path.join(indexDir, name));
   }
 
@@ -274,6 +345,10 @@ async function loadIndex({ workspace, sandboxDir, indexId }) {
   const manifest = JSON.parse(await fsp.readFile(manifestPath, 'utf8'));
   const chunks = JSON.parse(await fsp.readFile(path.join(indexDir, manifest.artifacts.chunks), 'utf8'));
   const msJsonText = await fsp.readFile(path.join(indexDir, manifest.artifacts.minisearch), 'utf8');
+  const entitiesPath = manifest.artifacts?.entities ? path.join(indexDir, manifest.artifacts.entities) : null;
+  const entities = entitiesPath && fs.existsSync(entitiesPath)
+    ? JSON.parse(await fsp.readFile(entitiesPath, 'utf8'))
+    : null;
 
   const miniSearch = MiniSearch.loadJSON(msJsonText, {
     fields: ['text', 'path'],
@@ -288,40 +363,103 @@ async function loadIndex({ workspace, sandboxDir, indexId }) {
   // Fast lookup for text by id (citations need locations; context needs text)
   const byId = new Map(chunks.map(c => [c.chunkId, c]));
 
-  return { manifest, miniSearch, byId };
+  return { manifest, miniSearch, byId, entities };
 }
 
-async function queryIndex({ workspace, sandboxDir, indexId, question, topK, pathContains }) {
+async function queryIndex({ workspace, sandboxDir, indexId, question, topK, pathContains, graph, seedK, expandK, minEntityHits }) {
   const t0 = Date.now();
-  const { manifest, miniSearch, byId } = await loadIndex({ workspace, sandboxDir, indexId });
+  const { manifest, miniSearch, byId, entities } = await loadIndex({ workspace, sandboxDir, indexId });
   const tLoad = Date.now();
-
-  // Search wider then filter; keeps the filtering feature simple.
-  const hits = miniSearch.search(question, { limit: Math.max(topK * 5, topK) });
-  const tSearch = Date.now();
-
-  const chunks = [];
-  const citations = [];
-  const contextParts = [];
 
   const want = (pathContains && String(pathContains).trim()) ? String(pathContains).trim().toLowerCase() : null;
 
+  const useGraph = Boolean(graph) && entities && entities.entityToChunks && entities.chunkToEntities;
+  const kSeed = Number(seedK || Math.min(6, topK));
+  const kExpand = Number(expandK || Math.min(6, topK));
+  const minHits = Number(minEntityHits || 2);
+
+  // Search wider then filter; keeps the filtering feature simple.
+  const hits = miniSearch.search(question, { limit: Math.max(topK * 10, topK) });
+  const tSearch = Date.now();
+
+  // 1) seed chunks
+  const seeds = [];
   for (const h of hits) {
-    if (chunks.length >= topK) break;
+    if (seeds.length >= kSeed) break;
     const c = byId.get(h.id);
     if (!c) continue;
     if (want && !String(c.path).toLowerCase().includes(want)) continue;
-    chunks.push({
+    seeds.push({ hit: h, chunk: c });
+  }
+
+  // 2) graph expand (entity -> chunks)
+  const expanded = [];
+  const expandedWhy = new Map();
+
+  if (useGraph) {
+    const seedEntities = new Set();
+    for (const s of seeds) {
+      const ents = entities.chunkToEntities[s.chunk.chunkId] || [];
+      for (const e of ents) seedEntities.add(e);
+    }
+
+    // score candidate chunks by how many seed entities they share
+    const candScores = new Map();
+    for (const e of seedEntities) {
+      const chunkIds = entities.entityToChunks[e] || [];
+      for (const cid of chunkIds) {
+        // skip seeds
+        if (seeds.some(s => s.chunk.chunkId === cid)) continue;
+        candScores.set(cid, (candScores.get(cid) || 0) + 1);
+      }
+    }
+
+    // rank candidates: highest shared-entity count first
+    const ranked = [...candScores.entries()]
+      .filter(([, score]) => score >= minHits)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, kExpand);
+
+    for (const [cid, score] of ranked) {
+      const c = byId.get(cid);
+      if (!c) continue;
+      if (want && !String(c.path).toLowerCase().includes(want)) continue;
+      expanded.push({ chunk: c, score });
+      expandedWhy.set(cid, `expanded(shared_entities=${score})`);
+    }
+  }
+
+  // 3) fuse
+  const fused = [];
+  const addChunk = (c, score, why) => {
+    if (fused.some(x => x.chunkId === c.chunkId)) return;
+    fused.push({
       chunkId: c.chunkId,
       path: c.path,
       start: c.startLine,
       end: c.endLine,
-      score: h.score,
-      why: 'lexical',
+      score,
+      why,
     });
-    citations.push({ path: c.path, chunkId: c.chunkId, start: c.startLine, end: c.endLine });
-    contextParts.push(`SOURCE: ${c.path}:${c.startLine}-${c.endLine}\n${c.text}`);
+  };
+
+  for (const s of seeds) addChunk(s.chunk, s.hit.score, 'seed');
+  for (const ex of expanded) addChunk(ex.chunk, ex.score, expandedWhy.get(ex.chunk.chunkId) || 'expanded');
+
+  // Fill remaining slots with lexical hits (baseline)
+  for (const h of hits) {
+    if (fused.length >= topK) break;
+    const c = byId.get(h.id);
+    if (!c) continue;
+    if (want && !String(c.path).toLowerCase().includes(want)) continue;
+    addChunk(c, h.score, 'lexical');
   }
+
+  const citations = fused.map(c => ({ path: c.path, chunkId: c.chunkId, start: c.start, end: c.end }));
+  const contextParts = fused.map(c => {
+    const full = byId.get(c.chunkId);
+    return `SOURCE: ${c.path}:${c.start}-${c.end}\n${full?.text || ''}`;
+  });
 
   const answerContext = contextParts.join('\n\n---\n\n');
 
@@ -330,8 +468,11 @@ async function queryIndex({ workspace, sandboxDir, indexId, question, topK, path
     indexId,
     answerContext,
     citations,
-    chunks,
-    subgraph: { entities: [], relations: [] },
+    chunks: fused,
+    subgraph: {
+      entities: useGraph ? [...new Set(seeds.flatMap(s => (entities.chunkToEntities[s.chunk.chunkId] || [])))].slice(0, 50).map(name => ({ name })) : [],
+      relations: [],
+    },
     debug: {
       timingMs: {
         loadIndex: tLoad - t0,
@@ -340,6 +481,12 @@ async function queryIndex({ workspace, sandboxDir, indexId, question, topK, path
         total: Date.now() - t0,
       },
       stats: manifest.stats,
+      graph: {
+        enabled: useGraph,
+        seedK: kSeed,
+        expandK: kExpand,
+        minEntityHits: minHits,
+      }
     },
   };
 }
@@ -347,7 +494,7 @@ async function queryIndex({ workspace, sandboxDir, indexId, question, topK, path
 function usage() {
   console.error(`Usage:
   openclaw-graphrag build [--workspace <path>] [--docsDir <rel>] [--sandboxDir <rel>] [--index <id>]
-  openclaw-graphrag query --question "..." [--topK 8] [--pathContains "..."] [--workspace <path>] [--sandboxDir <rel>] [--index <id>] [--format json]
+  openclaw-graphrag query --question "..." [--topK 8] [--graph true] [--seedK 6] [--expandK 6] [--minEntityHits 2] [--pathContains "..."] [--workspace <path>] [--sandboxDir <rel>] [--index <id>] [--format json]
 `);
 }
 
@@ -401,6 +548,10 @@ async function main() {
       question,
       topK,
       pathContains: args.pathContains || DEFAULTS.pathContains,
+      graph: args.graph,
+      seedK: args.seedK,
+      expandK: args.expandK,
+      minEntityHits: args.minEntityHits,
     });
     process.stdout.write(JSON.stringify(out, null, 2));
     return;
