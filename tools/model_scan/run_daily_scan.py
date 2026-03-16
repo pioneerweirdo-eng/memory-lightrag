@@ -111,31 +111,37 @@ def main() -> int:
     # Scan minimax
     results.append(scan_minimax(date))
 
-    # Print human summary
-    lines = [f"Daily model scan ({date} UTC)"]
+    # Print human-friendly summary (Feishu)
+    lines = [
+        f"🧪 Daily model scan — {date} UTC",
+    ]
+
+    # Provider status
     for pid, meta in results:
-        lines.append(f"- {pid}: rc={meta['rc']}")
+        status = "✅" if meta["rc"] == 0 else "❌"
+        lines.append(f"{status} {pid} (rc={meta['rc']})")
         if meta["rc"] != 0:
-            lines.append("  last log:")
-            for ln in meta["log"].splitlines()[-6:]:
-                lines.append(f"    {ln}")
+            tail = meta["log"].splitlines()[-3:]
+            for ln in tail:
+                lines.append(f"  ↳ {ln}")
 
-    # Also include top-ranked models for each provider (if rank files exist)
-    for p in providers:
-        rank_path = ART / f"{p['id']}-ranked-{date}.json"
-        if rank_path.exists():
-            rj = json.loads(rank_path.read_text("utf-8"))
-            ranked = rj.get("ranked", [])
-            if ranked:
-                lines.append(f"- {p['id']} ranked(ok) top: {ranked[:10]}")
-            else:
-                lines.append(f"- {p['id']} ranked(ok): (none)")
-
-    mm_rank = ART / f"minimax-cn-ranked-{date}.json"
-    if mm_rank.exists():
-        rj = json.loads(mm_rank.read_text("utf-8"))
+    # OK model highlights
+    def add_rank_line(label: str, rank_path: Path):
+        if not rank_path.exists():
+            return
+        rj = json.loads(rank_path.read_text("utf-8"))
         ranked = rj.get("ranked", [])
-        lines.append(f"- minimax-cn ranked(ok): {ranked}")
+        if ranked:
+            lines.append(f"  • {label} OK: {', '.join(ranked[:8])}")
+        else:
+            lines.append(f"  • {label} OK: (none)")
+
+    for p in providers:
+        add_rank_line(p["id"], ART / f"{p['id']}-ranked-{date}.json")
+
+    add_rank_line("minimax-cn", ART / f"minimax-cn-ranked-{date}.json")
+
+    lines.append(f"Artifacts: {ART}/ (scan + ranked JSON)")
 
     print("\n".join(lines))
     return 0
