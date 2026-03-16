@@ -33,9 +33,19 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
 
+def _subst_env(s: str) -> str:
+    # supports "${ENV}" substitution in JSON config
+    if s.startswith("${") and s.endswith("}"):
+        k = s[2:-1]
+        return os.environ.get(k, s)
+    return s
+
+
 def scan_openai_provider(p: dict, date: str) -> tuple[str, dict]:
     out = ART / f"{p['id']}-scan-{date}.json"
     rank = ART / f"{p['id']}-ranked-{date}.json"
+
+    base_url = _subst_env(p["baseUrl"])
 
     # Some public endpoints block GET /models (e.g. Cloudflare 1010). If blocked,
     # the config should supply a manual allowlist under `models`.
@@ -45,7 +55,7 @@ def scan_openai_provider(p: dict, date: str) -> tuple[str, dict]:
         "--provider",
         p["id"],
         "--base-url",
-        p["baseUrl"],
+        base_url,
         "--api",
         "openai",
         "--api-key-env",

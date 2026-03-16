@@ -85,6 +85,8 @@ def check_model_openai(base_url: str, api_key: str, model: str, timeout_s: int =
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
+        # Some gateways sit behind Cloudflare and block non-browser UA.
+        "User-Agent": "Mozilla/5.0 (OpenClaw model-scan)",
     }
     t0 = time.time()
     try:
@@ -112,6 +114,7 @@ def check_model_anthropic(base_url: str, api_key: str, model: str, timeout_s: in
         "content-type": "application/json",
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
+        "User-Agent": "Mozilla/5.0 (OpenClaw model-scan)",
     }
     t0 = time.time()
     try:
@@ -127,18 +130,37 @@ def check_model_anthropic(base_url: str, api_key: str, model: str, timeout_s: in
         return ModelCheck(model=model, ok=False, status="ERR", ms=ms, info=str(e)[:260])
 
 
-def scan(provider: str, base_url: str, api: ApiKind, api_key: str, models: Iterable[str], sleep_s: float = 0.25) -> ScanResult:
+def scan(
+    provider: str,
+    base_url: str,
+    api: ApiKind,
+    api_key: str,
+    models: Iterable[str],
+    *,
+    sleep_s: float = 0.05,
+    timeout_s: int = 15,
+    max_checks: int = 40,
+) -> ScanResult:
+    """Probe a list of models.
+
+    Guardrails:
+    - `max_checks` prevents huge /models lists from causing long runs.
+    - smaller `sleep_s` keeps cron runs fast.
+    """
     results: List[ModelCheck] = []
-    for m in models:
+    for i, m in enumerate(models):
+        if i >= max_checks:
+            break
         m = m.strip()
         if not m:
             continue
         if api == "openai":
-            r = check_model_openai(base_url, api_key, m)
+            r = check_model_openai(base_url, api_key, m, timeout_s=timeout_s)
         else:
-            r = check_model_anthropic(base_url, api_key, m)
+            r = check_model_anthropic(base_url, api_key, m, timeout_s=timeout_s)
         results.append(r)
-        time.sleep(sleep_s + random.random() * 0.05)
+        if sleep_s > 0:
+            time.sleep(sleep_s + random.random() * 0.03)
 
     ok = sum(1 for r in results if r.ok)
     return ScanResult(provider=provider, base_url=base_url, api=api, checked=len(results), ok=ok, results=results)
@@ -156,12 +178,17 @@ def load_models_from_openai_models_json(path: str) -> List[str]:
     return out
 
 
-def fetch_openai_models(base_url: str, api_key: str, timeout_s: int = 25) -> List[str]:
-    """Fetch model ids from an OpenAI-compatible /models endpoint."""
+def fetch_openai_models(base_url: str, api_key: str, timeout_s: int = 25, limit: int = 200) -> List[str]:
+    """Fetch model ids from an OpenAI-compatible /models endpoint.
+
+    Some gateways return very large model lists; keep a hard limit to avoid long
+    runs in cron.
+    """
     url = base_url.rstrip("/") + "/models"
     req = urllib.request.Request(url, method="GET")
     req.add_header("Authorization", f"Bearer {api_key}")
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "Mozilla/5.0 (OpenClaw model-scan)")
     with urllib.request.urlopen(req, timeout=timeout_s) as resp:
         body = resp.read().decode("utf-8", "replace")
     j = json.loads(body)
@@ -170,6 +197,8 @@ def fetch_openai_models(base_url: str, api_key: str, timeout_s: int = 25) -> Lis
     for item in data:
         if isinstance(item, dict) and item.get("id"):
             out.append(str(item["id"]))
+            if len(out) >= limit:
+                break
     return out
 
 
@@ -227,13 +256,14 @@ def main(argv: List[str]) -> int:
         if args.api != "openai":
             print("--fetch-models requires --api openai", file=sys.stderr)
             return 2
-        models = fetch_openai_models(args.base_url, api_key)
+        models = fetch_openai_models(args.base_url, api_key, limit=200)
     elif args.models_json:
         models = load_models_from_openai_models_json(args.models_json)
     else:
         models = [m.strip() for m in args.models.split(",")]
 
-    res = scan(args.provider, args.base_url, args.api, api_key, models)
+    # keep scans bounded for cron use
+    res = scan(args.provider, args.base_url, args.api, api_key, models, timeout_s=15, max_checks=40)
 
     out_obj = res.to_json()
     if args.out:

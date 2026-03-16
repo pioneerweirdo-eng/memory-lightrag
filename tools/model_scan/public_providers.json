@@ -1,6 +1,16 @@
 {
   "providers": [
     {
+      "id": "api-925214",
+      "name": "api.925214.xyz (公益/聚合)",
+      "enabled": true,
+      "api": "openai",
+      "baseUrl": "https://api.925214.xyz/v1",
+      "apiKeyEnv": "API_925214_API_KEY",
+      "modelsEndpoint": "auto",
+      "notes": "OpenAI-compatible. Supports GET /v1/models (requires Bearer token)."
+    },
+    {
       "id": "daiju",
       "name": "Daiju公益/聚合站",
       "enabled": false,
@@ -9,7 +19,7 @@
       "apiKeyEnv": "DAIJU_API_KEY",
       "modelsEndpoint": "blocked",
       "models": ["gpt-5.2", "gpt-5.2-codex", "kimi-k2.5", "glm-5", "qwen3.5-plus", "llama3.1-8B"],
-      "notes": "OpenAI-compatible, but GET /models appears blocked (Cloudflare 1010). We maintain a manual allowlist here and probe each model via /chat/completions." 
+      "notes": "Blocked by Cloudflare 1010 from this host; keep disabled unless endpoint changes."
     }
   ]
 }
