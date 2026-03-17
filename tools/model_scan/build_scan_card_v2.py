@@ -56,34 +56,36 @@ def main() -> int:
 
     def fmt_models(models: list[str]) -> str:
         if not models:
-            return "暂无（可能未配置 Key / 被限流）"
+            return "暂无(可能未配置Key/被限流)"
         return ", ".join(models[:3])
 
     # Minimal, emoji-free
+    # In this tenant, the interactive renderer degrades into legacy text blocks.
+    # Markdown is NOT parsed reliably, so we only use plain_text.
     elements = [
         {
             "tag": "div",
             "text": {
-                "tag": "lark_md",
-                "content": f"**{args.title}**  |  {date_bj}（北京）",
+                "tag": "plain_text",
+                "content": f"{args.title} | {date_bj}（北京）",
             },
         },
-        {"tag": "div", "text": {"tag": "lark_md", "content": ""}},
-        {"tag": "div", "text": {"tag": "lark_md", "content": "### 公益站（api-925214）"}},
+        {"tag": "div", "text": {"tag": "plain_text", "content": ""}},
+        {"tag": "div", "text": {"tag": "plain_text", "content": "公益站（api-925214）"}},
         {
             "tag": "div",
-            "text": {"tag": "lark_md", "content": f"可用模型（Top3）：{fmt_models(pub)}"},
+            "text": {"tag": "plain_text", "content": f"可用模型(Top3)：{fmt_models(pub)}"},
         },
         {"tag": "hr"},
-        {"tag": "div", "text": {"tag": "lark_md", "content": "### MiniMax"}},
+        {"tag": "div", "text": {"tag": "plain_text", "content": "MiniMax"}},
         {
             "tag": "div",
-            "text": {"tag": "lark_md", "content": f"可用模型：{fmt_models(mm)}"},
+            "text": {"tag": "plain_text", "content": f"可用模型：{fmt_models(mm)}"},
         },
         {"tag": "hr"},
         {
             "tag": "div",
-            "text": {"tag": "lark_md", "content": f"产物目录：`{str(art)}`"},
+            "text": {"tag": "plain_text", "content": f"产物目录：{str(art)}"},
         },
     ]
 
