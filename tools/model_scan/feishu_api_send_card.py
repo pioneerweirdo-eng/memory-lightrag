@@ -77,13 +77,13 @@ def get_tenant_access_token(app_id: str, app_secret: str) -> str:
 
 def send_interactive_card(*, token: str, to_open_id: str, card: dict) -> dict:
     url = OPENAPI_BASE.rstrip("/") + "/open-apis/im/v1/messages?receive_id_type=open_id"
-    # NOTE: Feishu expects card JSON in `card` field for msg_type=interactive.
+    # In this tenant, the interactive renderer that actually displays in Feishu
+    # is driven by the legacy `content` JSON string. Supplying `card` triggers
+    # strict schema validation and may reject fields (e.g. `elements`).
     payload = {
         "receive_id": to_open_id,
         "msg_type": "interactive",
-        # Some Feishu deployments validate `content` required even for interactive.
         "content": json.dumps(card, ensure_ascii=False),
-        "card": card,
     }
     j = http_json(url, payload, headers={"Authorization": f"Bearer {token}"})
     if j.get("code") != 0:

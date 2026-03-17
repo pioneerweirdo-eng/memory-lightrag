@@ -1,21 +1,15 @@
 #!/usr/bin/env python3
-"""Build a Feishu *compatible* interactive card payload for daily model scan.
+"""Build a Feishu interactive card payload for the daily model scan.
 
-Important: Although we send msg_type=interactive, this tenant renders the card
-using a legacy "title/elements" shape.
+We follow Feishu Card JSON 2.0 structure (schema=2.0) using top-level `elements`
+(as per Feishu examples).
 
-Empirically working shape:
-{
-  "config": {...},
-  "header": {...},
-  "elements": [ {tag:"div"...}, {tag:"hr"}, ... ]
-}
+Constraints discovered by experimentation in this tenant:
+- Markdown is not reliably parsed => use plain_text.
+- `note` tag caused server-side rejection.
+- header.icon with an `img` tag was rejected.
 
-Unsupported in this environment for the interactive card renderer:
-- `note` tag (schema v2)
-- header.icon with tag img
-
-So we avoid those and keep a clean, minimal card.
+So we keep the card minimal and stable: header + div/hr + action buttons.
 """
 
 from __future__ import annotations
@@ -89,14 +83,38 @@ def main() -> int:
         },
     ]
 
+    # IMPORTANT: For this tenant, sending the card via OpenAPI `content` works best
+    # when we use the "v2 compat" structure:
+    # { config, header, elements:[{tag:div/hr/action...}] }
+    # Feishu will internally transform it to legacy title/elements when delivering.
+
     card = {
         "config": {"wide_screen_mode": True, "enable_forward": True},
         "header": {
             "template": "blue",
             "title": {"tag": "plain_text", "content": args.title},
         },
-        # Critical: use top-level `elements` (NOT body.elements)
-        "elements": elements,
+        "elements": [
+            *elements,
+            {"tag": "hr"},
+            {
+                "tag": "action",
+                "actions": [
+                    {
+                        "tag": "button",
+                        "text": {"tag": "plain_text", "content": "查看目录"},
+                        "type": "default",
+                        "value": "open_artifacts",
+                    },
+                    {
+                        "tag": "button",
+                        "text": {"tag": "plain_text", "content": "重新扫描"},
+                        "type": "primary",
+                        "value": "rerun_scan",
+                    },
+                ],
+            },
+        ],
     }
 
     Path(args.out).write_text(json.dumps(card, ensure_ascii=False), "utf-8")
