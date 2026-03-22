@@ -40,3 +40,13 @@ Inbox -> Assigned -> In Progress -> Review -> Done
 - State: Done
 - Owner: Director
 - Output: `TEAM_CHARTER.md`
+
+### T6 Milestone-1 启动（memory-lightrag 插件骨架）
+- State: In Progress
+- Owner: Director
+- Input: `ARCHITECTURE_FINAL.md`, `METRICS_AND_GATES.md`
+- Output: `MILESTONE_1_KICKOFF.md`, plugin scaffold checklist
+- Acceptance:
+  - 明确 v1 范围（status/search/fallback）
+  - 明确不做项（auto-capture/consolidation/decay）
+  - 给出第一批实现顺序和验证脚本
