@@ -1,29 +1,25 @@
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { parseLightragConfig } from "./config/schema.js";
 import { LightragAdapter } from "./adapter/lightrag.js";
 import { clampTopK } from "./policy/budget.js";
 
-export default definePluginEntry({
+export default {
   id: "memory-lightrag",
   name: "Memory (LightRAG)",
   description: "LightRAG-backed memory plugin scaffold (v1)",
   kind: "memory",
-  register(api) {
+  register(api: any) {
     const cfg = parseLightragConfig(api.pluginConfig);
     const adapter = new LightragAdapter(cfg);
 
     api.registerCli(
-      ({ program }) => {
+      ({ program }: any) => {
         const memory = program.command("memory").description("Memory operations");
 
-        memory
-          .command("status")
-          .description("Check memory backend status")
-          .action(async () => {
-            const status = await adapter.checkHealth();
-            // eslint-disable-next-line no-console
-            console.log(JSON.stringify(status, null, 2));
-          });
+        memory.command("status").description("Check memory backend status").action(async () => {
+          const status = await adapter.checkHealth();
+          // eslint-disable-next-line no-console
+          console.log(JSON.stringify(status, null, 2));
+        });
 
         memory
           .command("search <query>")
@@ -39,4 +35,4 @@ export default definePluginEntry({
       { commands: ["memory"] },
     );
   },
-});
+};
