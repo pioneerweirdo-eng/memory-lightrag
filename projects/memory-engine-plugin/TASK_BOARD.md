@@ -52,19 +52,24 @@ Inbox -> Assigned -> In Progress -> Review -> Done
   - 给出第一批实现顺序和验证脚本
 
 #### T6-A Architect 子任务
-- State: In Progress
+- State: Done
 - Runtime: ACP (`agentId=openclaw`, model=`slwixwph/gpt-5.4`)
 - Child Session: `agent:openclaw:acp:5c7c8ae7-e513-4142-ae32-2e3fa2a1f1f1`
-- Expected Output: `T6_ARCHITECT_TASK.md`
+- Output: `T6_ARCHITECT_TASK.md`
 
 #### T6-B Adapter 子任务
-- State: In Progress
+- State: Done
 - Runtime: ACP (`agentId=openclaw`, model=`slwixwph/gpt-5.4`)
 - Child Session: `agent:openclaw:acp:9308e503-878f-450d-a76f-5f5d5d24dba5`
-- Expected Output: `T6_ADAPTER_TASK.md`
+- Output: `T6_ADAPTER_TASK.md`
 
 #### T6-C QA 子任务
-- State: In Progress
+- State: Done
 - Runtime: ACP (`agentId=openclaw`, model=`slwixwph/gpt-5.4`)
 - Child Session: `agent:openclaw:acp:9c5ed99f-813e-4f83-ba08-46c11aeb599d`
-- Expected Output: `T6_QA_TASK.md`
+- Output: `T6_QA_TASK.md`
+
+#### T6-Review Director 评审
+- State: Done (Conditional Pass)
+- Output: `T6_DIRECTOR_REVIEW.md`
+- Decision: **No-Go until P0 fixes complete**
