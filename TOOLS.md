@@ -48,6 +48,24 @@ tail -n 120 /home/node/.openclaw/agents/codex/sessions/*.acp-stream.jsonl
 
 ## 3) ACP / Codex Known Pitfalls (important)
 
+### Official-first rule (must follow)
+Before changing ACP/Codex/Claude behavior, read these docs first (no guesswork):
+- `/app/docs/cli/acp.md` (ACP bridge + acpx openclaw usage)
+- `/app/docs/providers/openai.md` (OpenAI / openai-codex official setup)
+- `/app/extensions/acpx/skills/acp-router/SKILL.md` (runtime routing rules in this repo)
+
+Hard constraint from docs:
+- OpenClaw model providers (`openclaw.json -> models.providers`) and ACP harness adapters are **different layers**.
+- `acpx codex/claude` uses adapter commands (e.g., `@zed-industries/codex-acp`, `@zed-industries/claude-agent-acp`), not OpenClaw provider aliases directly.
+- Therefore: do not treat provider model availability as ACP harness compatibility proof.
+
+Compatibility gate (official workflow):
+1. Verify pinned local `acpx` binary works.
+2. Run ACP smoke test.
+3. Only on pass: spawn ACP coding-agent.
+4. On fail: report URL + HTTP status + root cause; switch fallback path.
+
+
 ### Model/endpoint selection rule (hard requirement)
 - Do **not** assume any public endpoint/model is usable for codex-acp.
 - Before any ACP coding task, run a 30s smoke test first; only use the route that passes.

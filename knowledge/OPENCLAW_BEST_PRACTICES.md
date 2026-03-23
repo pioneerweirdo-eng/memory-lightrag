@@ -54,6 +54,18 @@
 - 403/429/502 先判定为上游可用性问题，再看本地配置
 - 不要重复发送近似无效回复；给出单次可执行下一步
 
+### 文档优先（官方来源先行）
+
+- 涉及 ACP/Codex/Claude 路由时，先读官方文档再改：
+  - `/app/docs/cli/acp.md`
+  - `/app/docs/providers/openai.md`
+  - `/app/extensions/acpx/skills/acp-router/SKILL.md`
+- 明确分层：
+  - `openclaw.json -> models.providers` 是 OpenClaw 模型层；
+  - `acpx codex/claude` 是 ACP 适配器层；
+  - 两者不能混为一谈。
+- 任何“可用性判断”必须以实测证据为准（至少包含请求 URL + HTTP 状态 +错误摘要），不是基于模型清单推断。
+
 ---
 
 ## 5) 多 Agent 设计
