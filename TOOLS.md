@@ -48,6 +48,22 @@ tail -n 120 /home/node/.openclaw/agents/codex/sessions/*.acp-stream.jsonl
 
 ## 3) ACP / Codex Known Pitfalls (important)
 
+### Model/endpoint selection rule (hard requirement)
+- Do **not** assume any public endpoint/model is usable for codex-acp.
+- Before any ACP coding task, run a 30s smoke test first; only use the route that passes.
+- If smoke fails, do not spawn coding-agent blindly; report failure reason and switch to fallback execution path.
+
+Smoke template:
+```bash
+cd /home/node/.openclaw/workspace/agents/director
+/app/extensions/acpx/node_modules/.bin/acpx --verbose --format quiet --timeout 30 codex exec "Reply with ACP_OK only"
+```
+
+Decision:
+- Pass => use ACP runtime.
+- Fail with 404/401/etc => no ACP spawn; return root cause + fallback.
+
+
 ### Symptom A
 - `codex run failed: acpx exited with code 1`
 - no agent output / stalled 60s
