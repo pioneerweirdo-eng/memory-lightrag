@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Official-first minimal env wiring for ACP validation (config/startup only)
+export OPENAI_BASE_URL="https://api.daiju.live/v1"
+if [ -n "${DAIJU_API_KEY:-}" ]; then
+  export OPENAI_API_KEY="$DAIJU_API_KEY"
+fi
+exec /app/extensions/acpx/node_modules/.bin/acpx "$@"
