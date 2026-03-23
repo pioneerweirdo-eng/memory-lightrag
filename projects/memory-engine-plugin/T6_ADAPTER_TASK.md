@@ -1,161 +1,214 @@
-# T6_ADAPTER_TASK — LightRAG Minimal HTTP Adapter Contract (v1)
+# T6_ADAPTER_TASK — LightRAG Minimal HTTP Adapter Contract (v1, typed recall)
 
 ## Goal
 Define the minimal adapter contract between `memory-lightrag` plugin and LightRAG backend for:
 - `memory status`
 - `memory search`
 
-No implementation code.
+This version upgrades from text-only normalization to **typed recall contract** aligned with `docs/memory-ontology.md`.
 
 ---
 
 ## 1) Adapter Interface (conceptual)
 
 ### `checkHealth()`
-- Purpose: backend availability + basic diagnostics
-- Returns: `{ healthy, latencyMs, backendVersion?, diagnostics[] }`
+- Purpose: backend availability + diagnostics for `memory status`
+- Returns:
+```ts
+{
+  healthy: boolean;
+  backend: "lightrag";
+  latencyMs: number;
+  backendVersion?: string;
+  diagnostics: string[];
+}
+```
 
 ### `search(query, options)`
-- Purpose: retrieve relevant memory candidates
+- Purpose: retrieve memory candidates for `memory search`
 - Input:
   - `query: string`
   - `topK?: number`
-  - `minScore?: number`
+  - `mode?: "mix" | "hybrid" | "local" | "global" | "naive" | "bypass"`
   - `timeoutMs?: number`
-- Returns:
-  - `items[]` (content, score, source, metadata)
-  - `meta` (latency, truncated, requestId)
+- Returns: `MemorySearchResult` (typed schema; see §3)
 
 ---
 
 ## 2) HTTP Mapping (v1)
 
-> Endpoint names may vary across LightRAG deployment wrappers. The adapter contract standardizes behavior even when paths differ.
-
-### Health Mapping
+## Health Mapping
 - Preferred probe order:
   1. `GET /health`
   2. fallback `GET /status`
-  3. fallback lightweight query endpoint with noop payload
+- Success criteria:
+  - HTTP 2xx
+  - parseable response (JSON preferred)
 
-Success criteria:
-- HTTP 2xx
-- parseable JSON or known health text
+## Search Mapping
+- Preferred endpoint: `POST /query/data` (structured retrieval)
+- Fallback endpoint: `POST /query` (text response + references)
 
-### Search Mapping
-- Preferred endpoint:
-  - `POST /query` (or deployment-specific search route)
-- Request body (normalized):
+### Normalized request body
 ```json
 {
   "query": "<text>",
+  "mode": "mix",
   "top_k": 6,
-  "min_score": 0.55
+  "include_references": true,
+  "include_chunk_content": false,
+  "stream": false
 }
 ```
-- Headers:
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <apiKey>` when configured
+
+Headers:
+- `Content-Type: application/json`
+- `Authorization: Bearer <apiKey>` when configured
 
 ---
 
-## 3) Response Normalization
+## 3) Typed Search Output Contract (v1)
 
-Regardless of backend payload shape, adapter must normalize to:
+Adapter must normalize to ontology-aligned shape:
 
 ```json
 {
+  "ok": true,
+  "backend": "lightrag",
+  "query": "...",
   "items": [
     {
-      "content": "...",
-      "score": 0.78,
-      "source": "doc_or_node_id",
-      "metadata": {
-        "title": "...",
-        "url": "...",
-        "chunk": "..."
+      "id": "rec:1",
+      "score": 0.82,
+      "text": "...",
+      "entities": [
+        { "id": "ent:1", "type": "person", "name": "Alice" }
+      ],
+      "relations": [
+        { "id": "rel:1", "type": "related_to", "fromEntityId": "ent:1", "toEntityId": "ent:2" }
+      ],
+      "sources": [
+        { "id": "src:1", "kind": "file", "uri": "/path/doc.md", "snippet": "..." }
+      ],
+      "provenance": {
+        "backend": "lightrag",
+        "retrievedAt": "2026-03-23T00:00:00Z",
+        "queryMode": "mix"
       }
     }
   ],
   "meta": {
-    "requestId": "optional",
-    "latencyMs": 123,
-    "truncated": false
+    "topKApplied": 6,
+    "truncated": false,
+    "latencyMs": 138,
+    "entityCount": 1,
+    "relationCount": 1,
+    "sourceCount": 1
   }
 }
 ```
 
 Rules:
-- Missing score -> set `null`, then filtered by plugin policy layer
-- Missing source -> set synthetic source `"lightrag:unknown"`
-- Empty result -> valid `items: []`
+- Preserve `text` for backward compatibility.
+- If graph fields absent, return empty `entities[]/relations[]` and synthesize at least one `sources[]` entry when possible.
+- Clamp numeric confidence/weight fields to `[0,1]`.
 
 ---
 
-## 4) Error Taxonomy (typed)
+## 4) Response Normalization Rules
 
-Adapter must emit stable error classes:
+### A) `/query/data` success (`status=success`)
+- `data.entities[]` -> `items[].entities[]`
+- `data.relationships[]` -> `items[].relations[]`
+- `data.chunks[]` + `data.references[]` -> `items[].sources[]` + `items[].text`
+- `metadata.query_mode` -> `items[].provenance.queryMode`
+
+### B) `/query` success
+- `response` -> single `item.text`
+- `references[]` -> `sources[]`
+- `entities[]/relations[]` remain empty in v1 (unless extra metadata exists)
+
+### C) Unknown/legacy payloads (`items[]` or `results[]`)
+- Best-effort map `text/content/score/source`
+- Place unknown fields into `sources[].metadata`
+
+---
+
+## 5) Error Taxonomy (typed)
+
 - `BAD_CONFIG` (invalid URL/key/params)
 - `AUTH_FAILED` (401/403)
 - `BACKEND_DOWN` (connection refused/DNS)
 - `TIMEOUT` (request timeout)
 - `RATE_LIMITED` (429)
-- `PARSE_ERROR` (invalid payload)
+- `PARSE_ERROR` (invalid payload/schema mismatch)
 - `UPSTREAM_5XX` (500/502/503/504)
 
-Each error should include:
-- `type`
-- `message`
-- `httpStatus?`
-- `retryable: boolean`
-- `actionHint`
+Each error must include:
+```json
+{
+  "type": "TIMEOUT",
+  "message": "...",
+  "httpStatus": 504,
+  "retryable": true,
+  "actionHint": "Increase timeout or check backend load"
+}
+```
 
 ---
 
-## 5) Timeout / Retry Policy (v1 minimal)
+## 6) Timeout / Retry Policy (v1)
 
 Defaults:
 - `timeoutMs = 6000`
 - `retryCount = 1`
-- `retryBackoffMs = 300` (single linear retry)
+- `retryBackoffMs = 300`
 
-Retry only for retryable classes:
+Retry only for:
 - `BACKEND_DOWN`, `TIMEOUT`, `UPSTREAM_5XX`, `RATE_LIMITED`
 
-Do not retry for:
+Do not retry:
 - `BAD_CONFIG`, `AUTH_FAILED`, `PARSE_ERROR`
 
-Rate-limit handling:
-- if `Retry-After` present, respect it (bounded by plugin max timeout budget)
+If `Retry-After` exists on 429, respect it (bounded by timeout budget).
 
 ---
 
-## 6) Fallback Coupling
+## 7) Fallback Coupling
 
-When adapter returns typed failure, plugin fallback layer must map to:
-- `fallback: true`
-- `reason` from typed error
-- actionable hint (e.g., switch to `memory-core`)
+On adapter failure, plugin must return explicit fallback marker (no silent fallback):
 
-No silent fallback.
+```json
+{
+  "fallback": true,
+  "reason": "BACKEND_DOWN",
+  "error": {
+    "type": "BACKEND_DOWN",
+    "retryable": true,
+    "actionHint": "Switch plugins.slots.memory to memory-core if outage persists"
+  }
+}
+```
 
 ---
 
-## 7) Observability Fields
+## 8) Observability Fields
 
-For each status/search call, emit log fields:
+For each status/search call, emit:
 - `operation` (`status`/`search`)
+- `resolvedEndpoint`
 - `backend` (`lightrag`)
 - `latencyMs`
 - `httpStatus`
-- `errorType?`
+- `errorType` (if any)
 - `retryCountUsed`
 - `resultCount` (search)
+- `entityCount` / `relationCount` / `sourceCount` (search)
 
 ---
 
-## 8) v1 Compatibility Notes
+## 9) v1 Constraints
 
-- Adapter should tolerate LightRAG deployment differences by using endpoint probing + mapping profile.
-- Keep mapping profile data-driven (path aliases), avoid hardcoding one vendor wrapper.
-- If no compatible endpoint discovered, return `BAD_CONFIG` with endpoint checklist hint.
+- v1 scope is **status/search only**.
+- Endpoint profile is data-driven (alias list), but implementation target is local LightRAG API (`/health`, `/query/data`, `/query`).
+- If no compatible endpoint resolves, return `BAD_CONFIG` with endpoint checklist hint.
