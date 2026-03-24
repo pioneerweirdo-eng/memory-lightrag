@@ -134,7 +134,7 @@ export function FeishuAdvancedPanel() {
           minRows={10}
           help={
             <>
-              例：<code>{{"default": {{"appId": "...", "enabled": true}}}}</code>
+              例：<code>{"{\"default\": {\"appId\": \"...\", \"enabled\": true}}"}</code>
             </>
           }
         />

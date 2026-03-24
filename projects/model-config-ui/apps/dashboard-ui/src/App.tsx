@@ -717,6 +717,32 @@ export default function App() {
     // ⑥ Schema 渲染器（所有其余结构化域）
     const activeSchemaDict = (schemas as any)[`${activeCategoryId}SchemaDict`];
     if (activeSchemaDict) {
+      // channels: 增加 Feishu 高级 JSON 编辑面板（用于 accounts.* / groups.* 这类 wildcard 路径）
+      if (activeCategoryId === "channels") {
+        return (
+          <div className="animate-fade-in u-stack" style={{ gap: 14 }}>
+            <div className="page-header">
+              <div>
+                <div className="page-title">channels 配置</div>
+                <div className="page-subtitle">基于 Schema 动态映射。修改会暂存于草稿区，保存后推送至后端。</div>
+              </div>
+            </div>
+
+            <FeishuAdvancedPanel />
+
+            <SchemaRenderer
+              fields={activeSchemaDict}
+              prefixText={
+                <>
+                  提示：带 <code>*</code> 的路径（例如 <code>channels.feishu.accounts.*.appId</code>）通常代表「任意 key 的 map」。
+                  建议用上方 JSON 编辑为 accounts/groups 设置具体 key（如 <code>accounts.default</code> / <code>groups.&lt;groupId&gt;</code>）。
+                </>
+              }
+            />
+          </div>
+        );
+      }
+
       return (
         <div className="animate-fade-in">
           <div className="page-header">
