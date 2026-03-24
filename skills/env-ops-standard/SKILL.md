@@ -24,7 +24,9 @@ Enforce a **Key-First SOP** for `.env` management.
 - Default env file: `/home/node/.openclaw/.env` unless user specifies otherwise.
 - Never print `.env` full content.
 - Never print raw secret values in chat/logs.
-- Prefer `--stdin` for `set` to avoid leaking values in shell history.
+- `set` defaults to **stdin-only** input. Passing value via argv requires explicit `--allow-argv`.
+- Writes are lock-guarded + atomic and create timestamped backups.
+- Backup retention is enforced (`--backup-keep`, `--backup-ttl-days`).
 - `unset` is destructive; confirm intent if user did not explicitly ask to remove key.
 
 ## Commands
@@ -33,12 +35,18 @@ Enforce a **Key-First SOP** for `.env` management.
   - `node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env keys`
 - Check key exists:
   - `node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env exists OPENAI_API_KEY`
-- Set/update key (safe stdin):
+- Set/update key (safe stdin, default):
   - `printf '%s' 'NEW_VALUE' | node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env set OPENAI_API_KEY --stdin`
+- Set only when missing:
+  - `printf '%s' 'NEW_VALUE' | node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env set OPENAI_API_KEY --stdin --if-missing`
 - Remove key:
   - `node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env unset OPENAI_API_KEY`
 - Lint format/duplicates:
   - `node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env lint`
+- Health summary:
+  - `node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env doctor`
+- Preview write without changing file:
+  - `... set/unset ... --dry-run`
 
 ## Output contract
 
