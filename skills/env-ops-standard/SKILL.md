@@ -14,7 +14,7 @@ Enforce a **Key-First SOP** for `.env` management.
 2. Confirm target key exists/does not exist:
    - `node {baseDir}/scripts/envsafe.js --file <ENV_FILE> exists KEY`
 3. Then perform write operation only if needed:
-   - set/update: `set`
+   - set/update: `set` (new key must include `--comment` by default policy)
    - delete: `unset`
 4. Validate after every write:
    - `node {baseDir}/scripts/envsafe.js --file <ENV_FILE> lint`
@@ -27,6 +27,8 @@ Enforce a **Key-First SOP** for `.env` management.
 - Never print `.env` full content.
 - Never print raw secret values in chat/logs.
 - `set` defaults to **stdin-only** input. Passing value via argv requires explicit `--allow-argv`.
+- New keys require clear comments by default (`--comment "..."`) to avoid ambiguity.
+- Key names must follow policy regex (default: `^[A-Z][A-Z0-9_]*$`), no ad-hoc naming.
 - Writes are lock-guarded + atomic and create timestamped backups.
 - Backup retention is enforced (`--backup-keep`, `--backup-ttl-days`).
 - Protected keys are policy-controlled and cannot be unset unless `--force` is explicitly passed.
@@ -40,6 +42,8 @@ Enforce a **Key-First SOP** for `.env` management.
   - `node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env exists OPENAI_API_KEY`
 - Set/update key (safe stdin, default):
   - `printf '%s' 'NEW_VALUE' | node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env set OPENAI_API_KEY --stdin`
+- Add new key with mandatory comment (recommended):
+  - `printf '%s' 'NEW_VALUE' | node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env set NEW_PROVIDER_API_KEY --stdin --comment "Provider key for xxx integration"`
 - Set only when missing:
   - `printf '%s' 'NEW_VALUE' | node {baseDir}/scripts/envsafe.js --file /home/node/.openclaw/.env set OPENAI_API_KEY --stdin --if-missing`
 - Remove key:

@@ -20,6 +20,9 @@ function parseArgs(argv) {
     requireStdin: true,
     allowArgv: false,
     auditLog: '/home/node/.openclaw/envsafe-audit.log',
+    keyNamePattern: '^[A-Z][A-Z0-9_]*$',
+    requireCommentForNew: true,
+    requireCommentInLint: false,
     protectedKeys: [],
     requiredProfiles: {},
     defaultProfile: '',
@@ -49,6 +52,11 @@ function parseArgs(argv) {
     else if (a === '--lock-timeout-ms') setOpt('lockTimeoutMs', Number(argv[++i]));
     else if (a === '--lock-stale-ms') setOpt('lockStaleMs', Number(argv[++i]));
     else if (a === '--audit-log') setOpt('auditLog', argv[++i]);
+    else if (a === '--comment') setOpt('comment', argv[++i]);
+    else if (a === '--key-name-pattern') setOpt('keyNamePattern', argv[++i]);
+    else if (a === '--require-comment-for-new') setOpt('requireCommentForNew', true);
+    else if (a === '--no-require-comment-for-new') setOpt('requireCommentForNew', false);
+    else if (a === '--require-comment-in-lint') setOpt('requireCommentInLint', true);
     else if (a === '--dedupe') setOpt('dedupe', argv[++i] || 'keep-last');
     else out._.push(a);
   }
@@ -84,6 +92,9 @@ function applyPolicy(opts) {
     'requireStdin',
     'allowArgv',
     'auditLog',
+    'keyNamePattern',
+    'requireCommentForNew',
+    'requireCommentInLint',
     'strict',
     'defaultProfile',
   ];
@@ -199,6 +210,19 @@ function validateKey(key) {
   if (!STRICT_KEY_RE.test(key || '')) die(`invalid key: ${key}`);
 }
 
+function validateKeyByPolicy(opts, key) {
+  validateKey(key);
+  let re = null;
+  try {
+    re = new RegExp(opts.keyNamePattern || '^[A-Z][A-Z0-9_]*$');
+  } catch (_) {
+    die(`invalid keyNamePattern regex in policy: ${opts.keyNamePattern}`);
+  }
+  if (!re.test(key)) {
+    die(`key does not match naming policy (${opts.keyNamePattern}): ${key}`);
+  }
+}
+
 function listKeys(lines) {
   const out = [];
   for (const ln of lines) {
@@ -285,10 +309,19 @@ function withLock(file, timeoutMs, staleMs, fn) {
   }
 }
 
-function lintFindings(file) {
+function lintFindings(file, opts = {}) {
   const lines = readLines(file);
   const seen = new Map();
   const invalidLines = [];
+  const missingComments = [];
+  let re = null;
+
+  try {
+    re = new RegExp(opts.keyNamePattern || '^[A-Z][A-Z0-9_]*$');
+  } catch (_) {
+    re = /^[A-Z][A-Z0-9_]*$/;
+  }
+
   lines.forEach((ln, i) => {
     const n = i + 1;
     const s = ln.trim();
@@ -300,6 +333,23 @@ function lintFindings(file) {
     }
     if (!seen.has(k)) seen.set(k, []);
     seen.get(k).push(n);
+
+    if (!re.test(k)) {
+      invalidLines.push(n);
+    }
+
+    if (opts.requireCommentInLint) {
+      let hasComment = false;
+      for (let j = i - 1; j >= 0; j--) {
+        const prev = (lines[j] || '').trim();
+        if (prev === '') continue;
+        if (prev.startsWith('#')) {
+          hasComment = true;
+        }
+        break;
+      }
+      if (!hasComment) missingComments.push({ key: k, line: n });
+    }
   });
 
   const duplicates = [];
@@ -309,6 +359,7 @@ function lintFindings(file) {
 
   return {
     invalidLines,
+    missingComments,
     duplicates,
     keyCount: seen.size,
     assignmentCount: [...seen.values()].reduce((a, x) => a + x.length, 0),
@@ -331,24 +382,25 @@ function cmdKeys(opts) {
 }
 
 function cmdExists(opts, key) {
-  validateKey(key);
+  validateKeyByPolicy(opts, key);
   const keys = new Set(listKeys(readLines(opts.file)));
   console.log(keys.has(key) ? 'present' : 'missing');
 }
 
 function cmdLint(opts) {
-  const f = lintFindings(opts.file);
-  for (const n of f.invalidLines) console.log(`line ${n}: invalid assignment syntax`);
+  const f = lintFindings(opts.file, opts);
+  for (const n of f.invalidLines) console.log(`line ${n}: invalid assignment syntax or key naming violation`);
   for (const d of f.duplicates) console.log(`duplicate key ${d.key} at lines ${d.lines.join(',')}`);
+  for (const m of f.missingComments) console.log(`missing comment for key ${m.key} at line ${m.line}`);
 
   const missing = requiredMissing(opts, f.keys);
   if (missing.length) console.log(`missing_required(${opts.profile})=${missing.join(',')}`);
 
-  if (f.invalidLines.length || f.duplicates.length || missing.length) process.exit(2);
+  if (f.invalidLines.length || f.duplicates.length || f.missingComments.length || missing.length) process.exit(2);
   console.log('OK');
 }
 
-function applySet(lines, key, value, dedupeMode, ifMissing) {
+function applySet(lines, key, value, dedupeMode, ifMissing, comment) {
   const newline = `${key}=${value}\n`;
   const idxs = [];
   for (let i = 0; i < lines.length; i++) {
@@ -362,6 +414,10 @@ function applySet(lines, key, value, dedupeMode, ifMissing) {
 
   if (idxs.length === 0) {
     if (out.length > 0 && !out[out.length - 1].endsWith('\n')) out[out.length - 1] += '\n';
+    if (comment && comment.trim()) {
+      const c = comment.trim().replace(/^#+\s*/, '');
+      out.push(`# ${c}\n`);
+    }
     out.push(newline);
     changed++;
     return { out, changed, removed, skipped };
@@ -422,7 +478,7 @@ function enforcePolicyFileSafety(opts) {
 }
 
 function cmdSet(opts, key, valueArg) {
-  validateKey(key);
+  validateKeyByPolicy(opts, key);
   if (!['keep-last', 'keep-first', 'none'].includes(opts.dedupe)) {
     die(`invalid --dedupe value: ${opts.dedupe}`);
   }
@@ -444,9 +500,16 @@ function cmdSet(opts, key, valueArg) {
   if (value === undefined) die('set requires value: use --stdin or --allow-argv <VALUE>');
   value = normalizeValue(value);
 
+  // Pre-check outside lock to avoid lock leak on hard-exit paths
+  const preLines = readLines(opts.file);
+  const preExists = new Set(listKeys(preLines)).has(key);
+  if (!preExists && opts.requireCommentForNew && !(opts.comment && String(opts.comment).trim())) {
+    die(`comment required for new key: ${key} (use --comment "..." or disable via policy)`);
+  }
+
   return withLock(opts.file, opts.lockTimeoutMs, opts.lockStaleMs, () => {
     const lines = readLines(opts.file);
-    const result = applySet(lines, key, value, opts.dedupe, !!opts.ifMissing);
+    const result = applySet(lines, key, value, opts.dedupe, !!opts.ifMissing, opts.comment);
 
     if (!opts.dryRun) {
       const bak = backupFile(opts.file);
@@ -484,7 +547,7 @@ function applyUnset(lines, key) {
 }
 
 function cmdUnset(opts, key) {
-  validateKey(key);
+  validateKeyByPolicy(opts, key);
   if (opts.protectedKeys.includes(key) && !opts.force) {
     die(`refusing to unset protected key: ${key} (use --force to override)`);
   }
@@ -530,6 +593,9 @@ function cmdDoctor(opts) {
   console.log(`invalid_lines=${f.invalidLines.length}`);
   console.log(`duplicate_keys=${f.duplicates.length}`);
   console.log(`missing_required=${missing.length}`);
+  console.log(`key_name_pattern=${opts.keyNamePattern}`);
+  console.log(`require_comment_for_new=${opts.requireCommentForNew ? 'yes' : 'no'}`);
+  console.log(`require_comment_in_lint=${opts.requireCommentInLint ? 'yes' : 'no'}`);
   console.log(`backups=${backupCount}`);
   if (f.invalidLines.length) console.log(`invalid_line_numbers=${f.invalidLines.join(',')}`);
   if (f.duplicates.length) console.log(`duplicate_key_names=${f.duplicates.map((x) => x.key).join(',')}`);
@@ -538,11 +604,12 @@ function cmdDoctor(opts) {
   appendAudit(opts, 'doctor', {
     invalidLines: f.invalidLines.length,
     duplicateKeys: f.duplicates.length,
+    missingComments: f.missingComments.length,
     missingRequired: missing.length,
     strict: !!opts.strict,
   });
 
-  if (opts.strict && (f.invalidLines.length || f.duplicates.length || missing.length)) {
+  if (opts.strict && (f.invalidLines.length || f.duplicates.length || f.missingComments.length || missing.length)) {
     process.exit(2);
   }
 }
@@ -559,6 +626,9 @@ function cmdPolicy(opts) {
   console.log(`lock_stale_ms=${opts.lockStaleMs}`);
   console.log(`audit_log=${opts.auditLog || ''}`);
   console.log(`strict_default=${opts.strict ? 'yes' : 'no'}`);
+  console.log(`key_name_pattern=${opts.keyNamePattern}`);
+  console.log(`require_comment_for_new=${opts.requireCommentForNew ? 'yes' : 'no'}`);
+  console.log(`require_comment_in_lint=${opts.requireCommentInLint ? 'yes' : 'no'}`);
   console.log(`profile=${opts.profile || 'none'}`);
   console.log(`protected_keys=${opts.protectedKeys.join(',')}`);
 }
@@ -570,7 +640,7 @@ function cmdPolicy(opts) {
   const [cmd, a1, a2] = opts._;
 
   if (!cmd) {
-    die('usage: envsafe.js [--policy PATH] [--file PATH] [--profile NAME] [--dry-run] [--strict] [--stdin] [--allow-argv] [--if-missing] [--force] [--dedupe keep-last|keep-first|none] [--audit-log PATH] [--lock-stale-ms N] <keys|exists|set|unset|lint|doctor|policy> ...');
+    die('usage: envsafe.js [--policy PATH] [--file PATH] [--profile NAME] [--dry-run] [--strict] [--stdin] [--allow-argv] [--comment TEXT] [--if-missing] [--force] [--dedupe keep-last|keep-first|none] [--audit-log PATH] [--lock-stale-ms N] [--key-name-pattern REGEX] [--require-comment-in-lint] <keys|exists|set|unset|lint|doctor|policy> ...');
   }
 
   if (cmd === 'keys') return cmdKeys(opts);
