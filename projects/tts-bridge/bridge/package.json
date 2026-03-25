@@ -11,6 +11,7 @@
     "lint": "node -c src/server.js"
   },
   "dependencies": {
+    "ffmpeg-static": "^5.2.0",
     "ws": "^8.18.3"
   }
 }

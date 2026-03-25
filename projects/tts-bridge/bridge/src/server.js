@@ -2,6 +2,7 @@ import http from 'node:http';
 import { URL } from 'node:url';
 import { DashScopeRealtimePool } from './dashscope_realtime_pool.js';
 import { pcm16ToWav } from './wav.js';
+import { ffmpegEncodeFromPcm16le, probeFfmpeg } from './encode_ffmpeg.js';
 
 const PORT = Number.parseInt(process.env.PORT ?? '3901', 10);
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -71,6 +72,37 @@ function checkAuth(req) {
   return m[1] === BRIDGE_TOKEN;
 }
 
+function normalizeResponseFormat(payload) {
+  const fmt = (payload?.response_format ?? payload?.format ?? '').toString().trim().toLowerCase();
+  if (fmt === 'opus') return 'opus';
+  if (fmt === 'mp3' || fmt === 'mpeg') return 'mp3';
+  if (fmt === 'wav' || fmt === 'pcm') return 'wav';
+  // Default policy: Telegram wants opus; OpenClaw will always send explicit response_format.
+  return 'mp3';
+}
+
+async function buildAudioResponse({ pcm, format }) {
+  if (format === 'wav') {
+    return {
+      body: pcm16ToWav(pcm, { sampleRate: SAMPLE_RATE, channels: 1, bitDepth: 16 }),
+      contentType: 'audio/wav',
+      outFormat: 'wav'
+    };
+  }
+
+  const encoded = await ffmpegEncodeFromPcm16le(pcm, {
+    format,
+    sampleRate: SAMPLE_RATE,
+    channels: 1,
+    timeoutMs: Number.parseInt(process.env.FFMPEG_TIMEOUT_MS ?? '15000', 10)
+  });
+
+  if (format === 'opus') {
+    return { body: encoded, contentType: 'audio/ogg', outFormat: 'opus' };
+  }
+  return { body: encoded, contentType: 'audio/mpeg', outFormat: 'mp3' };
+}
+
 const server = http.createServer(async (req, res) => {
   const startedAt = Date.now();
   try {
@@ -81,6 +113,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true,
         name: 'openclaw-tts-bridge',
+        ffmpeg: probeFfmpeg(),
         dashscope: {
           model: DASHSCOPE_MODEL,
           voice: DASHSCOPE_VOICE,
@@ -110,36 +143,41 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { error: { message: 'Missing input text (input)' } });
       }
 
+      const responseFormat = normalizeResponseFormat(payload);
+
       const reqId = `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
       const t0 = Date.now();
       const result = await pool.synthesize({ text, requestId: reqId });
       const t1 = Date.now();
 
-      // v1: wrap PCM16LE -> WAV and return.
-      const wav = pcm16ToWav(result.pcm, {
-        sampleRate: SAMPLE_RATE,
-        channels: 1,
-        bitDepth: 16
-      });
+      const tEnc0 = Date.now();
+      const audio = await buildAudioResponse({ pcm: result.pcm, format: responseFormat });
+      const tEnc1 = Date.now();
 
       res.statusCode = 200;
-      res.setHeader('content-type', 'audio/wav');
+      res.setHeader('content-type', audio.contentType);
       res.setHeader('x-tts-bridge-request-id', reqId);
+      res.setHeader('x-tts-bridge-format', audio.outFormat);
       res.setHeader('x-tts-bridge-t-acquire-ms', String(result.timings.acquireConnMs));
       res.setHeader('x-tts-bridge-t-first-audio-ms', String(result.timings.firstAudioDeltaMs));
       res.setHeader('x-tts-bridge-t-upstream-ms', String(result.timings.upstreamTotalMs));
+      res.setHeader('x-tts-bridge-t-encode-ms', String(tEnc1 - tEnc0));
       res.setHeader('x-tts-bridge-t-total-ms', String(t1 - t0));
-      res.setHeader('content-length', wav.length);
-      res.end(wav);
+      res.setHeader('content-length', audio.body.length);
+      res.end(audio.body);
 
       console.log(JSON.stringify({
         at: new Date().toISOString(),
         reqId,
         path: u.pathname,
+        responseFormat,
         bytesPcm: result.pcm.length,
-        bytesWav: wav.length,
-        timings: result.timings,
+        bytesOut: audio.body.length,
+        timings: {
+          ...result.timings,
+          encodeMs: tEnc1 - tEnc0
+        },
         totalMs: Date.now() - startedAt
       }));
       return;

@@ -88,6 +88,15 @@ class DashScopeRealtimeConn {
     });
   }
 
+  _invalidateConnection(reason) {
+    this.lastError = reason instanceof Error ? reason : new Error(String(reason));
+    this.ready = false;
+    try {
+      if (this.ws) this.ws.close();
+    } catch {}
+    this.ws = null;
+  }
+
   async synthesize({ text, requestId }) {
     if (!this.ready) {
       await this.connect();
@@ -120,11 +129,14 @@ class DashScopeRealtimeConn {
         reject
       };
 
-      // hard timeout (v1 default 3s)
+      const timeoutMs = Number.parseInt(process.env.DASHSCOPE_TTS_TIMEOUT_MS ?? '6000', 10);
       this.inflight.timer = setTimeout(() => {
-        reject(new Error('DashScope TTS timeout'));
+        const err = new Error('DashScope TTS timeout');
+        // IMPORTANT: close the websocket so we never carry late audio deltas into the next request.
+        this._invalidateConnection(err);
+        reject(err);
         this.inflight = null;
-      }, 3000);
+      }, timeoutMs);
     });
 
     return await p;
@@ -135,11 +147,14 @@ class DashScopeRealtimeConn {
 
     if (evt.type === 'error') {
       const msg = evt.error?.message ?? JSON.stringify(evt.error ?? evt);
+      const err = new Error(`DashScope error: ${msg}`);
       if (this.inflight?.reject) {
         clearTimeout(this.inflight.timer);
-        this.inflight.reject(new Error(`DashScope error: ${msg}`));
+        this.inflight.reject(err);
         this.inflight = null;
       }
+      // Close the websocket so we don't keep a potentially dirty connection.
+      this._invalidateConnection(err);
       return;
     }
 
