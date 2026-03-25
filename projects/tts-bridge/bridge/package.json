@@ -1,0 +1,16 @@
+{
+  "name": "openclaw-tts-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenAI-compatible TTS bridge for OpenClaw (DashScope/Qwen realtime + future providers)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "lint": "node -c src/server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
