@@ -142,12 +142,10 @@ export default {
                   workspace: enforced.workspace,
                   reasonCode: decision.reasonCode,
                   filteredDropped: dropped,
-                  results: filtered,
+                  resultCount: filtered.length,
+                  redaction: "details.results_omitted",
                 };
-                api.logger.info("memory-lightrag search", {
-                  ...details,
-                  results: undefined,
-                } as any);
+                api.logger.info("memory-lightrag search", details as any);
                 return {
                   content: filtered.slice(0, 8).map((r) => ({ type: "text", text: toResultText(r) })),
                   details,

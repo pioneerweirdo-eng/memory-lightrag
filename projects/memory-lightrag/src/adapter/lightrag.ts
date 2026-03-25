@@ -1,4 +1,6 @@
 import type { LightragConfig } from "../config/schema.js";
+import type { MemoryDomain } from "../policy/domain-routing.js";
+import { buildPolicyFileSource } from "../policy/source-tag.js";
 
 export interface MemorySearchResult {
   success: boolean;
@@ -190,19 +192,34 @@ export class LightragAdapter {
     }
   }
 
-  async insertText(text: string, fileSource: string, workspace?: string): Promise<{ success: boolean; trackId?: string; error?: string }> {
+  async insertText(params: {
+    text: string;
+    workspace?: string;
+    domain: MemoryDomain;
+    actorUserId?: string | null;
+    groupId?: string | null;
+    topic?: string;
+    // intentionally accepted but ignored to prevent spoofing
+    userProvidedFileSource?: string;
+  }): Promise<{ success: boolean; trackId?: string; error?: string; fileSource?: string }> {
     try {
+      const fileSource = buildPolicyFileSource({
+        domain: params.domain,
+        actorUserId: params.actorUserId,
+        groupId: params.groupId,
+        topic: params.topic,
+      });
       const res = await fetch(`${this.config.baseUrl}/documents/text`, {
         method: "POST",
-        headers: this.headers(workspace),
-        body: JSON.stringify({ text, file_source: fileSource }),
+        headers: this.headers(params.workspace),
+        body: JSON.stringify({ text: params.text, file_source: fileSource }),
         signal: AbortSignal.timeout(this.config.timeout),
       });
       if (!res.ok) {
-        return { success: false, error: `documents/text failed: ${res.status} ${res.statusText}` };
+        return { success: false, error: `documents/text failed: ${res.status} ${res.statusText}`, fileSource };
       }
       const data = (await res.json()) as any;
-      return { success: data?.status === "success", trackId: data?.track_id, error: data?.message };
+      return { success: data?.status === "success", trackId: data?.track_id, error: data?.message, fileSource };
     } catch (err) {
       return { success: false, error: toErr(err) };
     }
