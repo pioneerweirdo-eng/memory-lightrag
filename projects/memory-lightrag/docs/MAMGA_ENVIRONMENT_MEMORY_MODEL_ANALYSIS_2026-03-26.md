@@ -1,207 +1,262 @@
-# MAMGAUser/Environment × memory-lightrag 记忆建模分析报告（阶段版）
+# MAMGA（论文+代码）× memory-lightrag 记忆建模深度对比与迁移方案
 
 - 日期：2026-03-26 (UTC)
-- 执行人：health-manager
-- 目标：分析 `MAMGAUser/Environment` 项目及其论文中的 memory 建模方式，并提炼可迁移到 `memory-lightrag`（重点本体论）的方案。
-- 结论状态：**阶段版（受外部源获取限制）**
+- 输入来源：
+  - 论文：<https://arxiv.org/abs/2601.03236>
+  - 代码：<https://github.com/FredJiang0324/MAMGA>
+- 目标：聚焦 memory 建模，提炼可迁移到 `memory-lightrag`（重点本体论）的设计与实现路径。
 
 ---
 
-## 1) Scope & Constraints（范围与约束）
+## 0. Executive Summary（先给结论）
 
-### 本次实际完成范围
-1. 对 `memory-lightrag` 的本体/检索/隔离策略进行代码级审查。
-2. 建立“外部项目方法 → 本项目可迁移位点”的映射框架。
-3. 给出可落地的 Adopt/Defer/Reject 设计决策与分阶段实施方案。
+**一句话结论**：
+`memory-lightrag` 已有“轻量本体 + 域隔离”基础，但目前检索链路仍以 chunk 文本为主，尚未真正把图关系作为一等检索对象。MAMGA 的核心价值不在“再加一层图谱”，而在于三件事：
 
-### 关键约束（必须透明披露）
-- 当前环境中无法可靠拉取 `MAMGAUser/Environment` 仓库与对应论文正文（表现为：仓库不可达/不存在、GitHub API 限流、内置 web 工具受限）。
-- 因此本报告对 MAMGA 的部分采用：
-  - **已验证事实**：无法获取源码与论文原文；
-  - **待验证项**：其 memory schema 与训练/检索流程细节；
-  - **可先行动作**：先把我们侧可迁移“接口骨架”建好，待拿到原文后快速填充。
+1. **多关系正交建模**（semantic / temporal / causal / entity）
+2. **意图驱动的自适应遍历策略**（不是静态 top-k）
+3. **双通道记忆演化**（快写入 + 慢整合）
 
-> 这不是“泛泛而谈”规避，而是把“证据缺口”当成一等对象，先做可逆架构决策，避免盲目重构。
+对 `memory-lightrag` 最可落地的迁移路线是：
+- 先做 **Graph-preserving 输出**（不破坏 text fallback）；
+- 再做 **Intent-aware 重排与遍历**；
+- 最后做 **异步结构整合**。
 
 ---
 
-## 2) Evidence Table（证据表）
+## 1. MAMGA 的 memory 建模：论文与代码交叉验证
 
-| 来源 | 关键观察 | 置信度 |
+## 1.1 论文侧（arXiv:2601.03236）
+
+### A) 多图记忆基底（核心建模假设）
+- 论文明确提出将每条记忆映射到四个正交关系视图：**semantic / temporal / causal / entity**，并强调“解耦表示与检索逻辑”。
+  - 证据：摘要与引言（HTML 抽取行 98-100, 137-140, 148-160）
+- 数据结构定义为时间变化有向多重图 \(\mathcal{G}_t=(\mathcal{N}_t,\mathcal{E}_t)\)。
+  - 证据：3.2（行 246）
+
+### B) 检索不是“查库”，而是“策略化遍历”
+- 3.3 章节：由 Router 先做 query 结构化，再执行多阶段检索。
+- 锚点构建使用 **RRF** 融合 dense + keyword + temporal 信号。
+  - 证据：3.3（行 299, 303, 327）
+- 遍历评分由 query intent 动态加权（例如 WHY 强调 causal）。
+  - 证据：3.3（行 341, 361, 467）
+
+### C) 记忆演化是双流（Fast/Slow）
+- Fast Path：低延迟写入，不做阻塞式 LLM 推理。
+- Slow Path：后台 consolidation，补 causal / entity 高价值边。
+  - 证据：3.4（行 498, 502, 547, 556）
+
+### D) 实验信号（有代价也有收益）
+- LoCoMo、LongMemEval 上准确性和效率更优（文中报告）。
+  - 证据：4.x（行 729, 732, 810, 816, 826）
+- 局限性：多图与双流确实增加工程复杂度。
+  - 证据：Limitations（行 944）
+
+---
+
+## 1.2 代码侧（MAMGA 仓库）
+
+> 代码目录命名为 `memory/*`，核心文件含 `trg_memory.py`、`query_engine.py`、`graph_db.py`。
+
+### A) 类型层：节点/边就是本体
+- `graph_db.py` 定义：
+  - NodeType: `EVENT / EPISODE / ENTITY / SESSION ...`
+  - LinkType: `TEMPORAL / SEMANTIC / CAUSAL / ENTITY`
+  - LinkSubType: `PRECEDES / LEADS_TO / BELONGS_TO_SESSION / REFERS_TO ...`
+  - 证据：`graph_db.py` 行 18-57
+
+### B) 检索层：RRF + query intent +图遍历
+- `QueryEngine._rrf_fusion()`：标准 RRF（k=60）融合多检索列表。
+  - 证据：`query_engine.py` 行 55-116
+- `detect_query_intent()`：WHY / WHEN / ENTITY 分流。
+  - 证据：`query_engine.py` 行 225-245
+- `query()`：vector + keyword + scan 多路召回后融合，再做遍历与重排。
+  - 证据：`query_engine.py` 行 682-760
+
+### C) 写入演化层：已实现双通道雏形
+- `TemporalResonanceGraphMemory` 中存在 consolidation queue / pending 队列，体现快慢分离。
+  - 证据：`trg_memory.py` 行 144-148
+- 新 event 的 fast-path 动作：入图、入向量、temporal/semantic 初始边。
+  - 证据：`trg_memory.py` 行 152-220
+
+---
+
+## 2. memory-lightrag 当前状态（与 MAMGA 对照）
+
+## 2.1 已有优势（可直接承接迁移）
+1. 轻量本体已经定义：`MemoryEntity/Relation/Source`。
+   - 证据：`docs/memory-ontology.md`
+2. 多租户/域隔离做得较完整：workspace + source tag + 审计日志。
+   - 证据：`src/policy/access.ts`, `src/policy/source-tag.ts`
+3. 上游 LightRAG API 已可返回 entities/relationships。
+   - 证据：`docs/LIGHTRAG_API_REFERENCE.md`
+
+## 2.2 关键缺口（影响“结构化记忆”落地）
+1. **适配器只消费 chunks/references**，未透传 entities/relationships。
+   - 证据：`src/adapter/lightrag.ts` 行 142-173
+2. **契约与文档命名漂移**（`text` vs `content`）。
+   - 证据：`docs/memory-ontology.md` vs `src/types/contracts.ts` 行 75-85
+3. `memory_search` 输出仍以文本片段为主，图信息不可见。
+   - 证据：`src/index.ts`（当前工具输出路径）
+4. 缺少 query intent 驱动的结构化重排与遍历策略。
+
+---
+
+## 3. 本体映射（可迁移的“字段级”设计）
+
+| MAMGA | memory-lightrag 当前 | 迁移建议 |
 |---|---|---|
-| `docs/memory-ontology.md` L5-10, 16-204 | 已定义 v1 轻量本体：Entity/Relation/Source + 结构化 `MemorySearchItem`，强调“兼容 text-first fallback”。 | 高 |
-| `src/types/contracts.ts` L18-112 | 代码契约已含 ontology 类型；但搜索返回中主字段是 `content/source`（而非文档中 `text/sources-first` 命名），存在“文档-实现命名漂移”。 | 高 |
-| `src/adapter/lightrag.ts` L104-173 | 适配层调用 `/query/data`，但当前仅消费 `chunks/references`，**未把 `entities/relationships` 映射到返回结果**。 | 高 |
-| `src/index.ts` L124-152 | `memory_search` 最终输出仍是文本片段（Path+content），ontology 字段在工具输出中被“降格”为不可见内部能力。 | 高 |
-| `src/policy/domain-routing.ts` + `src/policy/access.ts` + `src/policy/source-tag.ts` | 已有 domain/workspace/source 前缀隔离（u__/g__/s__），并有 deny 审计日志，是可复用的“记忆安全边界”。 | 高 |
-| `docs/LIGHTRAG_API_REFERENCE.md` L141+ | `/query/data` 原生可返回实体/关系/块/引用，说明上游已具备图谱数据，不是后端能力不足。 | 高 |
-| 外部拉取尝试（GitHub/API/web） | 未能获取 `MAMGAUser/Environment` 与论文原文（API 限流/路径不存在/网络策略限制）。 | 高（对“无法获取”这一事实） |
-| MAMGA memory 具体结构 | 无法在当前会话验证（需仓库 URL、论文 PDF/标题）。 | 低 |
+| NodeType.EVENT | 无显式 event 类型（以 chunk 文本承载） | 在 `MemoryEntity.type` 增补 `event/episode/session`（或通过 attributes.type 强约束） |
+| NodeType.ENTITY | `MemoryEntity` 已有 | 保持；增加 canonical_id + alias merge 轨道 |
+| LinkType.TEMPORAL | `MemoryRelationType` 无时间序关系族 | 增补 `precedes/succeeds/concurrent`（可先放 `related_to` + qualifier，后升级枚举） |
+| LinkType.CAUSAL | 仅 `causes` 粗粒度 | 增补 `leads_to/enables/prevents/because_of` 或 relation qualifier |
+| LinkType.ENTITY (REFERS_TO) | 可由 `mentions/about` 近似 | 建议标准化 `refers_to`，减少语义歧义 |
+| SESSION/EPISODE 节点 | 无 | 先不强制建新 node type，v1 用 `entity(type=event|episode|session)` 过渡 |
+| RRF 多源锚点 | 无 | 引入 `hybrid_anchor` 阶段（dense + lexical + temporal） |
+| Intent-aware traversal | 无 | 引入 WHY/WHEN/WHO 轻量 router，先做权重切换，不先做复杂 beam search |
+| Dual-stream evolution | 写入偏同步 | 加 async consolidation worker（可选开关） |
 
 ---
 
-## 3) Option Matrix（Adopt / Defer / Reject）
+## 4. 可落地迁移方案（按收益/风险排序）
 
-### A. 本体与检索接口层
-
-1. **Adopt：双层结果模型（RawGraph + RecallView）**
-   - 含义：保留上游完整图结构（entities/relations/chunks/references）作为 `raw`，再投影成前台可用 `recall items`。
-   - 原因：当前只留 chunks 会丢失关系信息，无法支持“记忆推理链路”。
-   - 落点：`src/adapter/lightrag.ts` + `src/types/contracts.ts`。
-
-2. **Adopt：实体稳定 ID + same_as 合并轨道**
-   - 含义：在入库与检索环节维持实体稳定标识，加入别名归一策略。
-   - 原因：`memory-ontology.md` 已定义 `same_as`，但尚未落到检索结果与后处理。
-
-3. **Defer：高阶时序本体（episode timeline / temporal constraints）**
-   - 原因：目前基础关系层尚未打通，先做实体关系可见化更划算。
-
-4. **Reject（当前阶段）：端到端“全图替换文本召回”**
-   - 原因：风险高，且现有系统依赖 text-first fallback 作为可靠兜底。
-
-### B. 安全与多租户
-
-1. **Adopt：将 domain/source policy 前置到图数据层**
-   - 含义：对 entities/relations 的证据来源也执行 `isAllowedByDomain`。
-   - 原因：当前过滤主要作用于 chunk/source 文本，图关系也可能跨域泄露。
-
-2. **Defer：跨域共享本体（global ontology federation）**
-   - 原因：需要先定义严格授权和撤销语义，否则共享关系会变成隐式泄露面。
-
-### C. 与“外部项目方法”对齐方式（在源未到位时的可逆方案）
-
-1. **Adopt：先做“可插拔映射层”再对齐外部 schema**
-   - 落点：新增 `mapper/<external>/to-memory-ontology.ts`；
-   - 好处：拿到 MAMGA 源后只改 mapping，不动核心 API。
-
-2. **Reject：提前按猜测重构核心存储**
-   - 原因：证据不足，容易重构错误并放大回滚成本。
-
----
-
-## 4) Architecture Decision（单一路径推荐）
-
-**推荐路径：`Graph-preserving, Text-compatible`（保图兼文）**
-
-### 决策内容
-- 保持 `memory_search` 的文本返回兼容性不变（避免破坏现有 agent 行为）。
-- 在同一响应中新增结构化扩展（entities/relations/sources/provenance），并保证 domain 过滤后再输出。
-- 适配器严格消费 `/query/data` 的完整结构，而非只取 chunks。
-
-### 为什么是这条路
-1. 与现有 `memory-ontology` 文档目标一致（结构化回忆 + 兼容回退）。
-2. 与当前代码差距最小，可渐进上线。
-3. 对将来接入 MAMGA（或其他论文方案）的“迁移摩擦”最低。
-
----
-
-## 5) Phased Plan（v1 / v2 / v3）
-
-## v1（1-2 天）：把图数据“带出来”
+## Phase 1（2-3 天）：把“图”从后端带到前端
 
 ### 目标
-在不破坏现有 `content` 输出的前提下，让 `memory_search` 结果附带结构化本体字段。
+不破坏现有文本返回，新增结构化图输出。
 
-### 任务
+### 改造点
 1. `src/adapter/lightrag.ts`
-   - 解析 `data.entities` 与 `data.relationships`。
-   - 生成统一中间结构：`rawGraph` + `recallItems`。
+   - 解析 `data.entities` / `data.relationships`；
+   - 产出 `results + graph` 双层结构。
 2. `src/types/contracts.ts`
-   - 对齐文档命名（建议 `content` 与 `text` 二选一，提供向后兼容 alias）。
+   - 统一字段命名（建议 `content` 主字段，`text` 作为兼容 alias）。
 3. `src/index.ts`
-   - 工具返回新增 `details.ontology`（或 `details.graph`）计数信息：entityCount/relationCount/sourceCount。
-4. 过滤策略
-   - 对关系证据来源执行 domain 过滤（非仅文本片段）。
+   - 工具输出中加入 `details.ontology`：entityCount/relationCount/sourceCount。
+4. 安全策略
+   - 对 relation 的 evidence source 同步执行 `isAllowedByDomain()`。
 
 ### 验收
-- 查询响应可见实体/关系计数；
-- 老调用方不改代码也可继续工作。
+- 同一查询可见“文本+关系计数”；
+- 老调用方零改动。
 
-## v2（3-5 天）：实体归一与冲突处理
+---
+
+## Phase 2（3-5 天）：意图驱动重排（MAMGA 精髓之一）
 
 ### 目标
-让“同一实体多叫法”不再撕裂记忆。
+从“语义相似”升级到“结构对齐”。
 
-### 任务
-1. 增加 `same_as` 合并策略：name+alias+source evidence。
-2. 冲突显式化：同名异实体输出 `confidence/conflict_flag`。
-3. 追踪 provenance：关系必须可回指 source。
+### 改造点
+1. 新增 `query-intent.ts`
+   - 规则版识别 WHY/WHEN/ENTITY；
+2. 新增 `rerank-policy.ts`
+   - WHY：提高 causal 权重；
+   - WHEN：提高 temporal 权重；
+   - ENTITY：提高 entity continuity 权重；
+3. 引入 RRF 融合层（dense + keyword + temporal candidates）。
 
 ### 验收
-- Top 20 高频实体去重率提升；
-- 冲突样例可审计。
+- 在 WHY/WHEN 类问题上，relation-supported answer rate 上升；
+- token 使用可控（上下文更短但更“对题”）。
 
-## v3（1-2 周）：面向外部方法（含 MAMGA）对齐
+---
+
+## Phase 3（1-2 周）：双流记忆演化
 
 ### 目标
-引入“外部 schema 适配层”，实现低风险迁移。
+写入快、结构深。
 
-### 任务
-1. 建立 `external-memory-mapper` 接口（输入外部结构，输出标准本体）。
-2. 为 MAMGA 仓库/论文定义专用 mapping（待获得原文后实现）。
-3. 做 A/B：text-only vs graph-aware recall 对比。
+### 改造点
+1. Fast path（同步）
+   - 入库 chunk + 基础实体抽取 + temporal 骨架边。
+2. Slow path（异步）
+   - 后台做 causal/entity link 补全与去重合并；
+   - 支持失败重试与可观测日志。
+3. 增加 feature flag
+   - `enableAsyncConsolidation` / `enableIntentRouting`。
 
 ### 验收
-- 同一问题回答中可引用关系证据链；
-- Recall 准确率与可解释性提升可量化。
+- P95 写入时延不劣化；
+- 关系密度与可解释性提升。
 
 ---
 
-## 6) Risks / Rollback / Metrics（风险、回滚与指标）
+## 5. 重点：本体论层面的“可迁移方法”
 
-## 主要风险
-1. **证据缺口风险**：MAMGA 细节未取到，过早“拟合”会误导设计。
-2. **兼容性风险**：字段命名变更可能影响旧 prompt/tooling。
-3. **安全风险**：图关系若未过滤可能出现跨域泄露。
+## 5.1 不建议“照抄 MAMGA schema”，建议“兼容映射”
 
-## 回滚策略
-1. 保留 `fallbackEnabled=true` 路径（已有）。
-2. 新增结构字段均为 additive，不替换现有 `content` 主字段。
-3. 通过 feature flag 控制 ontology 输出开关（建议新增 `enableOntologyOutput`）。
+原因：`memory-lightrag` 已有稳定工具接口与 fallback 机制，硬切 schema 代价高。
 
-## 度量指标（上线后必须看）
-1. Recall 质量：
-   - entity hit rate
-   - relation-supported answer rate
-2. 安全：
-   - domain filter dropped ratio
-   - 跨域误召回事件数
-3. 稳定性：
-   - fallback ratio
-   - p95 latency
+建议：
+- 保留现有 `MemoryEntity/Relation/Source` 三元核心；
+- 用 `relation qualifiers` 与 `entity attributes` 承接 MAMGA 扩展语义；
+- 待验证后再把高频 qualifier 提升为一等枚举。
+
+## 5.2 将“检索策略”作为本体的一部分来治理
+
+MAMGA 的真正优势是：
+- query intent 与 relation type 绑定；
+- 这本质上是 **“语义层本体 + 操作层本体”协同**。
+
+在 `memory-lightrag` 应体现为：
+- ontology 不仅定义字段，还定义“什么问题偏好什么边”。
 
 ---
 
-## 针对“可借鉴 + 可迁移”的结论（当前可执行版）
+## 6. 风险与防线
 
-1. **先迁移“结构承载能力”，再迁移“具体外部语义”**：
-   先把我们的 adapter/output 变成真正 graph-aware，再对接 MAMGA 细节，成本最低。
-2. **把安全策略提升为本体级约束**：
-   现在的 domain/source 机制已经很好，应从 chunk 扩展到 entity/relation 证据链。
-3. **坚持可逆演进**：
-   任何升级都不替代 text-first fallback；以 additive schema + feature flag 推进。
-
----
-
-## 缺失输入清单（用于生成最终定稿版）
-
-为完成“对 MAMGA 项目与论文的精准对比”，还需要以下任一项：
-1. `MAMGAUser/Environment` 的可访问仓库链接（或压缩包）；
-2. 对应论文标题/DOI/arXiv 链接/PDF；
-3. 若仓库私有，请提供 README + memory 相关模块路径。
-
-拿到后可在本报告基础上 1 次迭代输出**定稿版（含逐段对照、字段级映射表、迁移 PR checklist）**。
+1. **复杂度上涨**：多关系 + 异步任务会引入维护成本。
+   - 防线：feature flag + 分阶段开关。
+2. **跨域泄露风险**：关系边如果绕过 source 过滤会泄露。
+   - 防线：relation evidence 强制走 domain policy。
+3. **召回漂移**：早期 intent 分类误判可能影响答案稳定性。
+   - 防线：保留 text-first fallback 与混合召回兜底。
 
 ---
 
-## 附：本次引用文件
+## 7. 最终建议（可直接执行）
+
+### Adopt（立刻做）
+- Graph-preserving adapter
+- relation-evidence 的 domain filter
+- intent-aware rerank（规则版）
+
+### Defer（拿到更多线上数据再做）
+- 完整 beam-search 遍历
+- 全量 episode/session 显式节点化
+
+### Reject（当前阶段不做）
+- 一步到位替换现有 text-first pipeline
+
+---
+
+## 8. 下一步交付（我建议）
+
+如果你同意，我下一步可以直接产出一份 **实现级 PR 任务清单**（文件到函数级别），包括：
+1. 每个文件要改什么
+2. 新增类型定义草案
+3. 回归测试清单（WHY/WHEN/ENTITY 三类）
+4. 发布开关与回滚步骤
+
+---
+
+## 附：引用证据清单
+
+### MAMGA
+- arXiv HTML 抽取：`/tmp/magma/arxiv2601.03236.html`
+- 代码：
+  - `/tmp/magma/graph_db.py`
+  - `/tmp/magma/query_engine.py`
+  - `/tmp/magma/trg_memory.py`
+
+### memory-lightrag
 - `projects/memory-lightrag/docs/memory-ontology.md`
 - `projects/memory-lightrag/src/types/contracts.ts`
 - `projects/memory-lightrag/src/adapter/lightrag.ts`
 - `projects/memory-lightrag/src/index.ts`
-- `projects/memory-lightrag/src/policy/domain-routing.ts`
-- `projects/memory-lightrag/src/policy/source-tag.ts`
 - `projects/memory-lightrag/src/policy/access.ts`
+- `projects/memory-lightrag/src/policy/source-tag.ts`
 - `projects/memory-lightrag/docs/LIGHTRAG_API_REFERENCE.md`
 
 （已归档到 memory-lightrag 项目目录）
