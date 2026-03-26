@@ -196,6 +196,71 @@ If graph fields are absent:
 
 ---
 
+## Runtime `details` Schema (Operator-facing)
+
+The plugin now emits additive observability fields under tool-call `details`.
+
+### `details.ontologyPolicy`
+
+Intent-aware rerank policy derived from query text.
+
+```ts
+export type QueryIntent = "WHY" | "WHEN" | "ENTITY" | "GENERAL";
+
+export interface RerankWeights {
+  causal: number;
+  temporal: number;
+  entity: number;
+  lexical: number;
+  semantic: number;
+}
+
+export interface OntologyPolicy {
+  intent: QueryIntent;
+  rerankWeights: RerankWeights;
+}
+```
+
+Notes:
+- Emitted when `query` is non-empty.
+- `intent` is rule-detected (`detectQueryIntent`).
+- `rerankWeights` comes from `getRerankWeights(intent)` and is finite-number normalized.
+
+---
+
+### `details.ontology.filtering`
+
+Filtering telemetry after domain/source access control is applied.
+
+```ts
+export interface OntologyFiltering {
+  sources: {
+    before: number;
+    after: number;
+    dropped: number;
+    dropRate: number; // rounded to 4 decimals, 0..1
+  };
+  relationsByEvidence: {
+    before: number;
+    after: number;
+    dropped: number;
+  };
+}
+```
+
+Semantics:
+- `sources.*`: counts before/after `isAllowedByDomain(...)` source filtering.
+- `sources.dropRate`: `dropped / before` (or `0` when `before===0`), emitted as `Number(toFixed(4))`.
+- `relationsByEvidence.*`: relation counts before/after evidence pruning.
+  - Evidence ids not present in allowed sources are removed from `evidenceSourceIds`.
+  - Relations with `evidenceSourceIds: []` after pruning are dropped.
+
+Related fields in `details.ontology` for context:
+- `stats.entityCount | relationCount | sourceCount`
+- sampled arrays: `entities`, `relations`, `sources` (each capped at top 20)
+
+---
+
 ## Why this is enough for implementation
 
 This ontology provides exactly the fields needed to:
