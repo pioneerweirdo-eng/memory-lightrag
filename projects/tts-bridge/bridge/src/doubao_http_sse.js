@@ -120,22 +120,42 @@ function mapResponseFormatToDoubaoAudioFormat(responseFormat) {
   return 'ogg_opus';
 }
 
-export async function synthesize({ text, requestId, responseFormat = 'opus' }) {
+export async function synthesize({ text, requestId, responseFormat = 'opus', voice, speed, instructions }) {
   if (!DOUBAO_APP_ID) throw new Error('DOUBAO_APP_ID is not set');
   if (!DOUBAO_ACCESS_KEY) throw new Error('DOUBAO_ACCESS_KEY is not set');
 
   const startedAt = Date.now();
   const audioFormat = mapResponseFormatToDoubaoAudioFormat(responseFormat);
 
+  // OpenAI-compat mapping:
+  // - voice: map to Doubao speaker id when provided
+  // - speed: map (roughly) to Doubao speech_rate [-50, 100]
+  // - instructions/style/prompt: map to additions.context_texts[0] (TTS2.0)
+  const speaker = (voice && String(voice).trim()) ? String(voice).trim() : DOUBAO_SPEAKER;
+
+  let speechRate = 0;
+  if (speed !== undefined && speed !== null && speed !== '') {
+    const s = Number(speed);
+    if (!Number.isNaN(s) && Number.isFinite(s)) {
+      // OpenAI speed is commonly ~0.25..4.0 (1.0 normal). Map 0.5->-50, 1.0->0, 2.0->100
+      const mapped = Math.round((s - 1) * 100);
+      speechRate = Math.max(-50, Math.min(100, mapped));
+    }
+  }
+
+  const ctx = (instructions && String(instructions).trim()) ? String(instructions).trim() : '';
+
   const payload = {
     user: { uid: requestId || 'openclaw' },
     req_params: {
       text,
-      speaker: DOUBAO_SPEAKER,
+      speaker,
       audio_params: {
         format: audioFormat,
-        sample_rate: DOUBAO_SAMPLE_RATE
-      }
+        sample_rate: DOUBAO_SAMPLE_RATE,
+        ...(speechRate !== 0 ? { speech_rate: speechRate } : {})
+      },
+      ...(ctx ? { additions: { context_texts: [ctx] } } : {})
     }
   };
 

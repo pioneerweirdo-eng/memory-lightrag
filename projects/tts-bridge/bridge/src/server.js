@@ -199,7 +199,14 @@ const server = http.createServer(async (req, res) => {
       const reqId = `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
       const t0 = Date.now();
-      const result = await pool.synthesize({ text, requestId: reqId, responseFormat });
+      const result = await pool.synthesize({
+        text,
+        requestId: reqId,
+        responseFormat,
+        voice: payload?.voice,
+        speed: payload?.speed,
+        instructions: payload?.instructions ?? payload?.style ?? payload?.prompt
+      });
       const t1 = Date.now();
 
       const audio = await buildAudioResponseFromUpstream({ upstream: result, responseFormat });
