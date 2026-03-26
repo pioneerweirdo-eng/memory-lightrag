@@ -260,3 +260,208 @@ MAMGA 的真正优势是：
 - `projects/memory-lightrag/docs/LIGHTRAG_API_REFERENCE.md`
 
 （已归档到 memory-lightrag 项目目录）
+
+---
+
+## 9. 审稿级补丁 A：命题-证据-结论矩阵（含置信等级）
+
+> 标记说明：
+> - **E（Established）**：可由当前论文/代码直接验证
+> - **I（Inferred）**：基于证据推断，尚缺一手实验或实现细节
+> - **H（Hypothesis）**：当前仅为迁移假设，需后续验证
+
+| 命题ID | 命题 | 直接证据 | 结论 | 置信 |
+|---|---|---|---|---|
+| P1 | MAMGA 记忆建模是多关系正交图（semantic/temporal/causal/entity） | 论文 1/3.2；`graph_db.py` `LinkType` 枚举 | 该项目核心不是“单图+向量附属”，而是多关系并列一等对象 | E |
+| P2 | MAMGA 检索是 policy-guided，不是静态 top-k | 论文 3.3（Router + Adaptive Traversal）；`query_engine.py` `detect_query_intent/get_adaptive_params/query` | query intent 影响遍历深度、边偏好、打分权重 | E |
+| P3 | MAMGA 使用多路召回融合（RRF） | 论文 3.3；`query_engine.py::_rrf_fusion` | 其召回机制天然可兼容 dense + lexical + temporal | E |
+| P4 | MAMGA 写入是双流（Fast/Slow） | 论文 3.4；`trg_memory.py` queue + fast/slow path | 可在不阻塞主交互的情况下补充结构边 | E |
+| P5 | memory-lightrag 当前未真正图感知检索输出 | `src/adapter/lightrag.ts` 仅映射 chunks/references | 结构化本体定义存在，但工具链输出仍偏文本片段 | E |
+| P6 | memory-lightrag 可低风险承接 MAMGA 思路 | `memory-ontology.md` + 现有 fallback/域隔离 | 可以 additive 方式演进而非重构替换 | I |
+| P7 | intent-aware 策略将显著提升 WHY/WHEN 类问题 | MAMGA 论文消融趋势 + 结构化检索常识 | 对你方数据分布是否同等收益尚待 A/B | H |
+| P8 | 双流引入后总体性能收益 > 工程复杂度增量 | MAMGA 给出效率收益，但你方链路不同 | 需你方实际压测与维护成本核算验证 | H |
+
+### 9.1 这份报告当前“最薄弱”证据点
+1. **P7/P8 属于迁移假设**：不能直接拿 MAMGA 结果当你方收益承诺。
+2. 缺少你方线上查询分布统计（WHY/WHEN/ENTITY 比例），导致策略收益预估偏粗。
+3. 缺少 relation-level 越权样例回放，安全结论目前是“原则正确、样例不足”。
+
+---
+
+## 10. 审稿级补丁 B：函数级改造清单（可直接进 PR）
+
+## 10.1 目标
+在不破坏 `memory_search` 现有调用方的前提下，完成 **Graph-preserving + Intent-aware（规则版）** 最小上线闭环。
+
+## 10.2 文件级改造任务
+
+### T1. `src/adapter/lightrag.ts`
+**改造前问题**：仅处理 `data.chunks/references`。
+
+**新增函数（建议）**：
+- `mapEntity(raw: any): MemoryEntity | null`
+- `mapRelation(raw: any): MemoryRelation | null`
+- `mapSource(raw: any): MemorySource`
+- `buildGraphPayload(data: any): { entities: MemoryEntity[]; relations: MemoryRelation[]; sources: MemorySource[] }`
+
+**search() 出参调整（向后兼容）**：
+- 保留 `results[]`（旧字段）
+- 新增 `graph`：
+  - `entities[]`
+  - `relations[]`
+  - `sources[]`
+  - `stats: {entityCount, relationCount, sourceCount}`
+
+**关键约束**：
+- 若上游无图字段，`graph` 返回空数组，不报错。
+- `reason/fallback/requestId/latencyMs` 行为保持不变。
+
+---
+
+### T2. `src/types/contracts.ts`
+**改造前问题**：`memory-ontology.md` 用 `text`，实现用 `content`。
+
+**建议变更**：
+- 在 `MemorySearchItem` 中保留 `content` 为主字段；
+- 增加 `text?: string` 兼容别名（序列化时可镜像为 `text = content`）；
+- 在 `MemorySearchResult.meta` 增加可选：
+  - `entityCount?: number`
+  - `relationCount?: number`
+  - `sourceCount?: number`
+
+---
+
+### T3. `src/index.ts`
+**改造前问题**：工具输出仅暴露文本结果。
+
+**建议变更**：
+- `memory_search` 输出新增：
+  - `details.ontology.stats`
+  - `details.ontology.entities`（可裁剪 top-N）
+  - `details.ontology.relations`（可裁剪 top-N）
+- 默认不改变旧主文本格式；结构化字段作为附加块。
+
+---
+
+### T4. `src/policy/source-tag.ts` + 调用链
+**改造前问题**：domain policy 主要针对文本 source。
+
+**建议变更**：
+- 新增 `isRelationAllowedByDomain(relation, sourceIndex, ctx)`（可放 policy 新文件）
+- 输出前对 relation 的 `evidenceSourceIds` 做二次过滤：
+  - 无合法证据源关系 => drop
+  - 有部分合法证据源 => 裁剪后保留
+
+---
+
+### T5. 新增 `src/policy/query-intent.ts`（规则版）
+
+```ts
+export type QueryIntent = "WHY" | "WHEN" | "ENTITY" | "GENERAL";
+export function detectIntent(q: string): QueryIntent;
+```
+
+规则示例：
+- WHY: `why|原因|导致|因为`
+- WHEN: `when|何时|之前|之后|时间`
+- ENTITY: `who|谁|哪个人|哪个实体`
+
+---
+
+### T6. 新增 `src/policy/rerank-policy.ts`
+
+```ts
+export interface RerankWeights {
+  causal: number;
+  temporal: number;
+  entity: number;
+  lexical: number;
+  semantic: number;
+}
+export function getWeights(intent: QueryIntent): RerankWeights;
+```
+
+规则版权重建议：
+- WHY: causal=1.6 temporal=0.9 entity=1.0
+- WHEN: temporal=1.6 causal=0.8 entity=1.0
+- ENTITY: entity=1.6 semantic=1.2
+- GENERAL: 全部=1.0
+
+---
+
+## 10.3 发布顺序（避免一次性风险）
+1. PR-1：T1+T2（纯结构透传）
+2. PR-2：T3+T4（输出 + 安全过滤）
+3. PR-3：T5+T6（规则路由 + 重排）
+
+---
+
+## 11. 审稿级补丁 C：评测协议（可复现实验）
+
+## 11.1 实验目标
+验证以下命题：
+- Q1：图透传是否提升“有证据关系支持的回答率”？
+- Q2：intent-aware 重排是否提升 WHY/WHEN 类问题准确性？
+- Q3：新增结构化链路是否引入不可接受的延迟或越权风险？
+
+## 11.2 实验分组
+- **Baseline-A**：当前生产策略（text-first）
+- **Variant-B**：Graph-preserving（不加 intent）
+- **Variant-C**：Graph-preserving + Intent-aware（规则版）
+
+## 11.3 数据采样
+- 从真实 query 日志抽样 N=300（建议）：
+  - WHY: 100
+  - WHEN: 100
+  - ENTITY/GENERAL: 100
+- 每类保证跨 personal/group/shared 三种 domain。
+
+## 11.4 指标定义
+1. **Answer Correctness@Judge**
+   - 使用同一评审模型、同一 rubric 打分。
+2. **Relation-Supported Answer Rate (RSAR)**
+   - 回答中关键结论是否可追溯到至少 1 条 relation + 合法 source。
+3. **Evidence Leakage Rate (ELR)**
+   - 输出中出现跨域非法 source 或关系证据的比例。
+4. **P95 Latency**
+   - `memory_search` 端到端 P95。
+5. **Fallback Ratio**
+   - 触发 fallback 的请求比例。
+
+## 11.5 验收阈值（上线闸门）
+- Variant-C 相对 Baseline-A：
+  - WHY/WHEN Correctness 提升 >= 8%
+  - RSAR 提升 >= 15%
+  - ELR = 0（硬门槛）
+  - P95 Latency 增幅 <= 20%
+  - Fallback Ratio 不恶化超过 5%
+
+## 11.6 统计与结论规则
+- 对 Correctness/RSAR 做 bootstrap 95% CI；
+- 若 CI 跨 0，不宣称“显著提升”；
+- 仅在 ELR=0 且延迟满足门槛时允许灰度。
+
+---
+
+## 12. 自我审查结论（针对本报告）
+
+### 12.1 仍存在的不足
+1. 尚未给出你方真实日志上的实测结果（当前是方案级，而非结果级）。
+2. intent 规则目前是启发式，需后续学习式路由替代。
+3. relation qualifier 的枚举边界还需结合你方业务词表收敛。
+
+### 12.2 已修正项
+1. 已补“命题-证据-结论”矩阵，避免推断与事实混淆。
+2. 已补函数级改造清单，可直接拆 PR。
+3. 已补评测协议与上线闸门，避免“感觉提升”。
+
+### 12.3 下一步最小执行包（建议）
+- 先落 PR-1（图透传）+ 小样本回放 50 条；
+- 达标后再上 PR-2（安全过滤）；
+- 最后灰度 PR-3（intent-aware）。
+
+这样可以把风险拆小、证据做实。
+
+---
+
+（补丁版已并入本报告）
