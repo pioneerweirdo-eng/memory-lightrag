@@ -14,7 +14,22 @@ const classificationCases = [
   { query: "", expected: "GENERAL" },
 ];
 
-for (const { query, expected } of classificationCases) {
+const boundaryCases = [
+  { query: "what changed yesterday", expected: "WHEN" },
+  { query: "what changed recently", expected: "WHEN" },
+  { query: "what is the reason", expected: "WHY" },
+  { query: "which team owns auth service", expected: "ENTITY" },
+  { query: "what service handles billing", expected: "ENTITY" },
+  { query: "what is this", expected: "GENERAL" },
+  { query: "什么是原因", expected: "WHY" },
+  { query: "昨天改了什么", expected: "WHEN" },
+  { query: "这个项目叫什么名字", expected: "ENTITY" },
+  { query: "这是什么", expected: "GENERAL" },
+  { query: "哪个导致这次故障", expected: "WHY" },
+  { query: "最近有哪些变更", expected: "WHEN" },
+];
+
+for (const { query, expected } of [...classificationCases, ...boundaryCases]) {
   const actual = detectQueryIntent(query);
   assert.equal(
     actual,
@@ -57,4 +72,5 @@ assert.equal(general.lexical, general.semantic, "GENERAL should keep balanced we
 
 console.log("intent-rerank.verify: OK");
 console.log(`- classification cases: ${classificationCases.length}`);
+console.log(`- boundary cases: ${boundaryCases.length}`);
 console.log(`- rerank intents checked: ${intents.length}`);
