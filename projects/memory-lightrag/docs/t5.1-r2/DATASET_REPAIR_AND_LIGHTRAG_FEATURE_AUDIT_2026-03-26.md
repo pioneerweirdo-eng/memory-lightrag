@@ -4,6 +4,14 @@ Date: 2026-03-26
 Project: `projects/memory-lightrag`
 Context: T5.1-R2 pre-promotion hardening
 
+## 0) 术语与时间口径（消除历史偏差歧义）
+
+- **[AS-IS] 当前事实**：基于 2026-03-26 当天代码与数据快照的已观察状态。
+- **[HISTORICAL] 历史口径**：仅用于解释过去评测结论如何产生，不作为当前发布依据。
+- **[PLAN] 规划项**：尚未落地的改造任务，不应被误读为已完成。
+
+> 本文所有结论默认按以上标签理解；未标注时，按 **[AS-IS]** 处理。
+
 ## 1) Scope & constraints
 
 ### Scope
@@ -20,14 +28,14 @@ Context: T5.1-R2 pre-promotion hardening
 
 ## 2) Evidence table
 
-| Source | Claim | Confidence |
-|---|---|---|
-| `eval/intent_replay_dataset_2026-03-26.json` | 数据集为自建样本（120），非公开标准基准；标签结构 `id/query/expected_intent`。 | High |
-| `eval/intent_calibration_dataset_2026-03-26.json` | 校准集仅 24 条，体量偏小，易受模板影响。 | High |
-| `eval/run-intent-replay-eval.mjs` | T4 baseline 规则内嵌在同 runner，可被同文件改动影响基线对比。 | High |
-| `src/policy/query-intent.ts` + `intent-features.ts` + `intent-scorer.ts` | 已做 deterministic scored routing，但阈值是硬编码；详细决策原因字段不完整。 | High |
-| `docs/LIGHTRAG_API_REFERENCE.md` | LightRAG 支持 `/query`, `/query/stream`, `/query/data`, `enable_rerank`, `chunk_top_k`, mode 等。 | High |
-| `src/adapter/lightrag.ts` | 当前只调用 `/query/data`，固定 `mode:"mix"`, `top_k:8`, `include_chunk_content:true`；未显式传 `enable_rerank/chunk_top_k`。 | High |
+| Source | Claim | Time tag | Confidence |
+|---|---|---|---|
+| `eval/intent_replay_dataset_2026-03-26.json` | 数据集为自建样本（120），非公开标准基准；标签结构 `id/query/expected_intent`。 | [AS-IS] | High |
+| `eval/intent_calibration_dataset_2026-03-26.json` | 校准集仅 24 条，体量偏小，易受模板影响。 | [AS-IS] | High |
+| `eval/run-intent-replay-eval.mjs` | T4 baseline 规则内嵌在同 runner，可被同文件改动影响基线对比。 | [AS-IS] | High |
+| `src/policy/query-intent.ts` + `intent-features.ts` + `intent-scorer.ts` | 已做 deterministic scored routing，但阈值是硬编码；详细决策原因字段不完整。 | [AS-IS] | High |
+| `docs/LIGHTRAG_API_REFERENCE.md` | LightRAG 支持 `/query`, `/query/stream`, `/query/data`, `enable_rerank`, `chunk_top_k`, mode 等。 | [AS-IS] | High |
+| `src/adapter/lightrag.ts` | 当前只调用 `/query/data`，固定 `mode:"mix"`, `top_k:8`, `include_chunk_content:true`；未显式传 `enable_rerank/chunk_top_k`。 | [AS-IS] | High |
 
 ---
 
