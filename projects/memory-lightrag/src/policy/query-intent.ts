@@ -19,11 +19,9 @@ const WHY_PATTERNS: RegExp[] = [
   /因果/,
 ];
 
-const WHEN_PATTERNS: RegExp[] = [
+// Strong temporal markers that should map to WHEN directly.
+const STRONG_WHEN_PATTERNS: RegExp[] = [
   /\bwhen\b/i,
-  /\btime\b/i,
-  /\bdate\b/i,
-  /\btimeline\b/i,
   /\bbefore\b/i,
   /\bafter\b/i,
   /\bduring\b/i,
@@ -37,8 +35,6 @@ const WHEN_PATTERNS: RegExp[] = [
   /何时/,
   /几点/,
   /哪天/,
-  /日期/,
-  /时间/,
   /多久/,
   /先后/,
   /之前/,
@@ -53,6 +49,48 @@ const WHEN_PATTERNS: RegExp[] = [
   /上个月/,
   /去年/,
   /今年/,
+];
+
+// Weaker temporal nouns need event context when paired with ambiguous words.
+const WHEN_TOPIC_PATTERNS: RegExp[] = [
+  /\btime\b/i,
+  /\bdate\b/i,
+  /\btimeline\b/i,
+  /时间/,
+  /日期/,
+];
+
+const WHEN_EVENT_HINT_PATTERNS: RegExp[] = [
+  /\bchange(?:d|s)?\b/i,
+  /\bhappen(?:ed|s|ing)?\b/i,
+  /\bstart(?:ed|s|ing)?\b/i,
+  /\bend(?:ed|s|ing)?\b/i,
+  /\bfinish(?:ed|es|ing)?\b/i,
+  /\brelease(?:d|s)?\b/i,
+  /\bdeploy(?:ed|ment|s)?\b/i,
+  /\bincident\b/i,
+  /\bissue\b/i,
+  /\boutage\b/i,
+  /\btask\b/i,
+  /\bupdate\b/i,
+  /\bmeeting\b/i,
+  /\bversion\b/i,
+  /\bdeadline\b/i,
+  /发生/,
+  /开始/,
+  /结束/,
+  /完成/,
+  /发布/,
+  /上线/,
+  /故障/,
+  /问题/,
+  /任务/,
+  /更新/,
+  /会议/,
+  /版本/,
+  /截止/,
+  /变更/,
+  /出现/,
 ];
 
 const STRONG_ENTITY_PATTERNS: RegExp[] = [
@@ -100,7 +138,8 @@ const ENTITY_NOUN_PATTERNS: RegExp[] = [
   /位置/,
 ];
 
-const AMBIGUOUS_ENTITY_QUESTION_PATTERNS: RegExp[] = [
+// Ambiguous prompts (what/which/什么/哪个/哪些) must be anchored by domain hints.
+const AMBIGUOUS_QUESTION_PATTERNS: RegExp[] = [
   /\bwhat\b/i,
   /\bwhich\b/i,
   /什么/,
@@ -134,20 +173,51 @@ const ENTITY_HINT_PATTERNS: RegExp[] = [
   /是谁/,
 ];
 
+// Guardrails: very weak prompts should stay GENERAL unless stronger cues exist.
+const GENERAL_WEAK_QUERY_PATTERNS: RegExp[] = [
+  /^\s*(?:what|which)\s+is\s+(?:this|that|it)\s*[?.!]?\s*$/i,
+  /^\s*(?:what|which)\s+(?:one\s+)?is\s+better\s*[?.!]?\s*$/i,
+  /^\s*这是什么\s*[？?]?\s*$/,
+  /^\s*哪个更好\s*[？?]?\s*$/,
+];
+
 function matchesAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
+}
+
+function isWeakGeneralQuery(text: string): boolean {
+  return matchesAny(text, GENERAL_WEAK_QUERY_PATTERNS);
+}
+
+function isWhenIntent(text: string): boolean {
+  if (matchesAny(text, STRONG_WHEN_PATTERNS)) return true;
+
+  const hasWhenTopic = matchesAny(text, WHEN_TOPIC_PATTERNS);
+  if (!hasWhenTopic) return false;
+
+  // Ambiguous "what/which" + "time/date" must include an event anchor.
+  const hasAmbiguousQuestion = matchesAny(text, AMBIGUOUS_QUESTION_PATTERNS);
+  if (hasAmbiguousQuestion) {
+    return matchesAny(text, WHEN_EVENT_HINT_PATTERNS);
+  }
+
+  if (isWeakGeneralQuery(text)) return false;
+  return true;
 }
 
 function isEntityIntent(text: string): boolean {
   if (matchesAny(text, STRONG_ENTITY_PATTERNS)) return true;
 
   const hasEntityNoun = matchesAny(text, ENTITY_NOUN_PATTERNS);
-  if (hasEntityNoun) return true;
+  const hasEntityHint = matchesAny(text, ENTITY_HINT_PATTERNS);
+  const hasAmbiguousQuestion = matchesAny(text, AMBIGUOUS_QUESTION_PATTERNS);
 
-  const hasAmbiguousQuestion = matchesAny(text, AMBIGUOUS_ENTITY_QUESTION_PATTERNS);
+  if (isWeakGeneralQuery(text) && !hasEntityNoun && !hasEntityHint) return false;
+
+  if (hasEntityNoun || hasEntityHint) return true;
   if (!hasAmbiguousQuestion) return false;
 
-  return matchesAny(text, ENTITY_HINT_PATTERNS);
+  return false;
 }
 
 export function detectQueryIntent(query: string): QueryIntent {
@@ -156,8 +226,9 @@ export function detectQueryIntent(query: string): QueryIntent {
   const normalized = query.trim();
   if (!normalized) return "GENERAL";
 
+  // Priority is fixed for compatibility: WHY -> WHEN -> ENTITY -> GENERAL.
   if (matchesAny(normalized, WHY_PATTERNS)) return "WHY";
-  if (matchesAny(normalized, WHEN_PATTERNS)) return "WHEN";
+  if (isWhenIntent(normalized)) return "WHEN";
   if (isEntityIntent(normalized)) return "ENTITY";
 
   return "GENERAL";
