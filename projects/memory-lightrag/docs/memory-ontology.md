@@ -226,6 +226,28 @@ Notes:
 - `intent` is rule-detected (`detectQueryIntent`).
 - `rerankWeights` comes from `getRerankWeights(intent)` and is finite-number normalized.
 
+#### T5 GENERAL disambiguation guardrails
+
+`GENERAL` should be treated as a first-class intent, not just a fallback bucket.
+
+Observed T5 boundary behavior (aligned with `detectQueryIntent` precedence `WHY -> WHEN -> ENTITY -> GENERAL`):
+- **Keep GENERAL** for ambiguous/open-ended prompts with weak cues only.
+  - Examples: `what should we do next`, `which is better for now`, `什么情况`, `哪个更好`
+- **Do not keep GENERAL** when explicit intent signals are present.
+  - WHY cues (`why`, `原因`, `导致`) should resolve to `WHY`
+  - WHEN cues (`today`, `recently`, `近期`, `昨天`) should resolve to `WHEN`
+  - ENTITY cues (`who`, `team`, `project`, `服务`, ownership/responsibility wording) should resolve to `ENTITY` unless an earlier-precedence cue already matched
+
+Troubleshooting with runtime fields:
+- For suspected GENERAL **false positives** (should be WHY/WHEN/ENTITY):
+  - Inspect `details.ontologyPolicy.intent`
+  - Verify the query text contains explicit cues expected by current regex patterns
+  - Confirm precedence behavior (WHY and WHEN intentionally outrank ENTITY)
+- For suspected GENERAL **false negatives** (should stay GENERAL):
+  - Check if broad words (`what/which/什么/哪个`) were matched without strong companion hints
+  - Ensure no hidden temporal/entity keyword in the exact query variant
+  - Reproduce with `npm run verify:intent-rerank` boundary cases before adjusting rules
+
 ---
 
 ### `details.ontology.filtering`

@@ -27,6 +27,14 @@ const boundaryCases = [
   { query: "这是什么", expected: "GENERAL" },
   { query: "哪个导致这次故障", expected: "WHY" },
   { query: "最近有哪些变更", expected: "WHEN" },
+  { query: "which is better for now", expected: "GENERAL" },
+  { query: "what should we do next", expected: "GENERAL" },
+  { query: "什么情况", expected: "GENERAL" },
+  { query: "哪个更好", expected: "GENERAL" },
+  { query: "which project owns this module", expected: "ENTITY" },
+  { query: "why is this slower today", expected: "WHY" },
+  // Priority compatibility guard: WHEN cues still beat ENTITY cues.
+  { query: "近期谁负责这个服务", expected: "WHEN" },
 ];
 
 for (const { query, expected } of [...classificationCases, ...boundaryCases]) {

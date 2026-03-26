@@ -85,3 +85,47 @@ Why this happens:
 - [ ] sampled `sources` and `relations` reflect expected workspace/domain
 
 If all four fail repeatedly, escalate as **policy/data contract mismatch** between LightRAG metadata and domain filtering rules.
+
+---
+
+## 5) T5 GENERAL disambiguation runbook
+
+Scope: investigate false positives/negatives where `details.ontologyPolicy.intent` returns `GENERAL` unexpectedly (or fails to return `GENERAL` for ambiguous prompts).
+
+### 5.1 Fast triage
+
+1. Capture the exact query string and resulting `details.ontologyPolicy.intent`.
+2. Check whether query includes explicit cues from current detector:
+   - WHY cues: `why`, `reason`, `cause`, `因为/原因/导致/...`
+   - WHEN cues: `when`, `yesterday`, `recently`, `今天/近期/...`
+   - ENTITY cues: strong (`who/where/谁/哪里`) or noun+hint (`team/project/service/owner/负责/...`)
+3. Apply precedence mentally: `WHY -> WHEN -> ENTITY -> GENERAL`.
+
+### 5.2 Common GENERAL false positives (should be specific intent)
+
+Symptoms:
+- Query has explicit temporal/entity/causal cues, but `intent=GENERAL`.
+
+Checks:
+- Compare query variant (plural/synonym/Chinese wording) against regex coverage in `detectQueryIntent`.
+- Re-run `npm run verify:intent-rerank` and confirm boundary cases still pass.
+- Add a targeted regression in `test/intent-rerank.verify.mjs` before changing patterns.
+
+### 5.3 Common GENERAL false negatives (should stay GENERAL)
+
+Symptoms:
+- Vague prompts like `what should we do next` get classified as `ENTITY`.
+
+Checks:
+- Confirm whether only ambiguous question words (`what/which/什么/哪个`) are present with no strong companion hints.
+- Ensure ENTITY classification is not triggered by incidental noun matches in user phrasing.
+- Validate against T5 boundary set in `generalBoundaryCases`.
+
+### 5.4 Required telemetry fields for incident notes
+
+- `details.ontologyPolicy.intent`
+- `details.ontologyPolicy.rerankWeights`
+- (if retrieval quality affected) `details.ontology.filtering.sources.before/after/dropped/dropRate`
+- (if relation evidence collapses) `details.ontology.filtering.relationsByEvidence.before/after/dropped`
+
+These are the canonical operator-visible fields; keep naming consistent in docs and reports.
