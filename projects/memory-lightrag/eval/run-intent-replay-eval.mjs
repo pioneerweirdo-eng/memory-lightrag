@@ -2,13 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { detectQueryIntent as detectQueryIntentT5 } from "../src/policy/query-intent.ts";
+import { detectQueryIntent as detectQueryIntentT5, detectQueryIntentDetailed } from "../src/policy/query-intent.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATASET_PATH = path.join(__dirname, "intent_replay_dataset_2026-03-26.json");
-const REPORT_PATH = path.join(__dirname, "intent_replay_results_2026-03-26.md");
+const REPLAY_DATASET_PATH = path.join(__dirname, "intent_replay_dataset_2026-03-26.json");
+const REPLAY_REPORT_PATH = path.join(__dirname, "intent_replay_results_2026-03-26.md");
+const CALIBRATION_DATASET_PATH = path.join(__dirname, "intent_calibration_dataset_2026-03-26.json");
+const CALIBRATION_REPORT_PATH = path.join(__dirname, "intent_calibration_results_2026-03-26.md");
 
 const INTENTS = ["WHY", "WHEN", "ENTITY", "GENERAL"];
 
@@ -67,14 +69,7 @@ const WHEN_PATTERNS = [
   /今年/,
 ];
 
-const STRONG_ENTITY_PATTERNS = [
-  /\bwho\b/i,
-  /\bwhere\b/i,
-  /谁/,
-  /哪位/,
-  /哪里/,
-  /哪儿/,
-];
+const STRONG_ENTITY_PATTERNS = [/\bwho\b/i, /\bwhere\b/i, /谁/, /哪位/, /哪里/, /哪儿/];
 
 const ENTITY_NOUN_PATTERNS = [
   /\bperson\b/i,
@@ -112,13 +107,7 @@ const ENTITY_NOUN_PATTERNS = [
   /位置/,
 ];
 
-const AMBIGUOUS_ENTITY_QUESTION_PATTERNS = [
-  /\bwhat\b/i,
-  /\bwhich\b/i,
-  /什么/,
-  /哪个/,
-  /哪些/,
-];
+const AMBIGUOUS_ENTITY_QUESTION_PATTERNS = [/\bwhat\b/i, /\bwhich\b/i, /什么/, /哪个/, /哪些/];
 
 const ENTITY_HINT_PATTERNS = [
   /\bcalled\b/i,
@@ -158,6 +147,10 @@ function pct(v) {
   return `${(v * 100).toFixed(2)}%`;
 }
 
+function fmt(v) {
+  return Number(v).toFixed(3);
+}
+
 function matchesAny(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
@@ -187,7 +180,43 @@ function detectQueryIntentT4(query) {
   return "GENERAL";
 }
 
-function evaluate(dataset, detector) {
+function summarizeScoring(detailed) {
+  if (!detailed) return null;
+
+  // Support both shapes:
+  // 1) { intent, scoring: { ... } }
+  // 2) { intent, rawScores, normalizedScores, topScore, secondScore, margin, minTopScore, minMargin, decisionIntent }
+  const scoring = detailed.scoring ?? detailed;
+
+  const topScore = Number(scoring.topScore);
+  const margin = Number(scoring.margin);
+  const minTopScore = Number(scoring.minTopScore ?? Number.NaN);
+  const minMargin = Number(scoring.minMargin ?? Number.NaN);
+
+  let decisionReason = scoring.decisionReason;
+  if (!decisionReason) {
+    if (scoring.decisionIntent === "GENERAL" && Number.isFinite(topScore) && Number.isFinite(minTopScore) && topScore < minTopScore) {
+      decisionReason = "low-score";
+    } else if (scoring.decisionIntent === "GENERAL" && Number.isFinite(margin) && Number.isFinite(minMargin) && margin < minMargin) {
+      decisionReason = "low-margin";
+    } else {
+      decisionReason = "scored";
+    }
+  }
+
+  return {
+    topIntent: scoring.topIntent,
+    decisionIntent: scoring.decisionIntent ?? detailed.intent,
+    decisionReason,
+    topScore: Number.isFinite(topScore) ? topScore : 0,
+    secondScore: Number.isFinite(Number(scoring.secondScore)) ? Number(scoring.secondScore) : 0,
+    margin: Number.isFinite(margin) ? margin : 0,
+    scores: scoring.scores ?? scoring.rawScores ?? null,
+    normalizedScores: scoring.normalizedScores ?? null,
+  };
+}
+
+function evaluate(dataset, detector, detailsProvider = null) {
   const confusion = Object.fromEntries(
     INTENTS.map((actual) => [actual, Object.fromEntries(INTENTS.map((pred) => [pred, 0]))]),
   );
@@ -196,11 +225,19 @@ function evaluate(dataset, detector) {
   const rows = [];
   let correct = 0;
 
+  const scoreRows = [];
+
   for (const item of dataset) {
     const actual = item.expected_intent;
     const predicted = detector(item.query);
+    const detail = detailsProvider ? detailsProvider(item.query) : null;
+    const scoring = summarizeScoring(detail);
 
-    rows.push({ ...item, predicted, correct: actual === predicted });
+    rows.push({ ...item, predicted, correct: actual === predicted, scoring });
+
+    if (scoring) {
+      scoreRows.push({ ...item, predicted, actual, correct: actual === predicted, ...scoring });
+    }
 
     if (actual === predicted) correct += 1;
 
@@ -228,6 +265,8 @@ function evaluate(dataset, detector) {
   const accuracy = safeDiv(correct, dataset.length);
   const misclassified = rows.filter((r) => !r.correct);
 
+  const scoreDiagnostics = buildScoreDiagnostics(scoreRows);
+
   return {
     samples: dataset.length,
     correct,
@@ -236,7 +275,81 @@ function evaluate(dataset, detector) {
     confusion,
     misclassifiedCount: misclassified.length,
     misclassified,
+    scoreDiagnostics,
   };
+}
+
+function buildScoreDiagnostics(scoreRows) {
+  if (!Array.isArray(scoreRows) || scoreRows.length === 0) return null;
+
+  const margins = scoreRows.map((r) => r.margin).filter((v) => Number.isFinite(v));
+  const topScores = scoreRows.map((r) => r.topScore).filter((v) => Number.isFinite(v));
+
+  const lowMarginThreshold = 0.08;
+  const lowMarginRows = scoreRows.filter((r) => Number.isFinite(r.margin) && r.margin < lowMarginThreshold);
+  const lowMarginErrors = lowMarginRows.filter((r) => !r.correct);
+
+  const byReason = {};
+  for (const row of scoreRows) {
+    const key = row.decisionReason || "unknown";
+    if (!byReason[key]) byReason[key] = { total: 0, errors: 0 };
+    byReason[key].total += 1;
+    if (!row.correct) byReason[key].errors += 1;
+  }
+
+  return {
+    available: true,
+    lowMarginThreshold,
+    margin: {
+      min: Math.min(...margins),
+      p25: percentile(margins, 25),
+      p50: percentile(margins, 50),
+      p75: percentile(margins, 75),
+      p90: percentile(margins, 90),
+      max: Math.max(...margins),
+      mean: mean(margins),
+    },
+    topScore: {
+      min: Math.min(...topScores),
+      p25: percentile(topScores, 25),
+      p50: percentile(topScores, 50),
+      p75: percentile(topScores, 75),
+      p90: percentile(topScores, 90),
+      max: Math.max(...topScores),
+      mean: mean(topScores),
+    },
+    lowMargin: {
+      total: lowMarginRows.length,
+      errorCount: lowMarginErrors.length,
+      errorRate: safeDiv(lowMarginErrors.length, lowMarginRows.length || 1),
+      rows: lowMarginRows.slice(0, 20).map((r) => ({
+        id: r.id,
+        expected: r.actual,
+        predicted: r.predicted,
+        margin: r.margin,
+        topScore: r.topScore,
+        reason: r.decisionReason,
+        query: r.query,
+      })),
+    },
+    byReason,
+  };
+}
+
+function percentile(values, p) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  const t = idx - lo;
+  return sorted[lo] * (1 - t) + sorted[hi] * t;
+}
+
+function mean(values) {
+  if (!values.length) return 0;
+  return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
 function delta(a, b) {
@@ -276,6 +389,41 @@ function pushMetricsSection(lines, title, metrics) {
     lines.push(`| ${actual} | ${row.WHY} | ${row.WHEN} | ${row.ENTITY} | ${row.GENERAL} |`);
   }
   lines.push("");
+
+  if (metrics.scoreDiagnostics?.available) {
+    const d = metrics.scoreDiagnostics;
+    lines.push("### Score Diagnostics");
+    lines.push("");
+    lines.push(`- Margin stats: min=${fmt(d.margin.min)}, p25=${fmt(d.margin.p25)}, p50=${fmt(d.margin.p50)}, p75=${fmt(d.margin.p75)}, p90=${fmt(d.margin.p90)}, max=${fmt(d.margin.max)}, mean=${fmt(d.margin.mean)}`);
+    lines.push(`- Top-score stats: min=${fmt(d.topScore.min)}, p25=${fmt(d.topScore.p25)}, p50=${fmt(d.topScore.p50)}, p75=${fmt(d.topScore.p75)}, p90=${fmt(d.topScore.p90)}, max=${fmt(d.topScore.max)}, mean=${fmt(d.topScore.mean)}`);
+    lines.push(`- Low-margin (<${fmt(d.lowMarginThreshold)}) cases: **${d.lowMargin.total}**; errors: **${d.lowMargin.errorCount}** (${pct(d.lowMargin.errorRate)})`);
+    lines.push("");
+
+    lines.push("#### Decision Reason Breakdown");
+    lines.push("");
+    lines.push("| Reason | Total | Errors | Error Rate |");
+    lines.push("|---|---:|---:|---:|");
+    for (const [reason, r] of Object.entries(d.byReason)) {
+      lines.push(`| ${reason} | ${r.total} | ${r.errors} | ${pct(safeDiv(r.errors, r.total))} |`);
+    }
+    lines.push("");
+
+    lines.push("#### Low-margin Error Samples");
+    lines.push("");
+    const lowErr = d.lowMargin.rows.filter((r) => r.expected !== r.predicted).slice(0, 10);
+    if (lowErr.length === 0) {
+      lines.push("None.");
+    } else {
+      lines.push("| ID | Expected | Predicted | Margin | TopScore | Reason | Query |");
+      lines.push("|---|---|---|---:|---:|---|---|");
+      for (const r of lowErr) {
+        lines.push(
+          `| ${r.id} | ${r.expected} | ${r.predicted} | ${fmt(r.margin)} | ${fmt(r.topScore)} | ${r.reason} | ${String(r.query).replace(/\|/g, "\\|")} |`,
+        );
+      }
+    }
+    lines.push("");
+  }
 }
 
 function buildComparison(baseline, current) {
@@ -327,29 +475,31 @@ function buildComparison(baseline, current) {
   return out;
 }
 
-function main() {
-  const dataset = JSON.parse(fs.readFileSync(DATASET_PATH, "utf8"));
+function evaluateDataset(datasetPath, reportPath, title) {
+  const dataset = JSON.parse(fs.readFileSync(datasetPath, "utf8"));
 
   const baseline = evaluate(dataset, detectQueryIntentT4);
-  const current = evaluate(dataset, detectQueryIntentT5);
+  const current = evaluate(dataset, detectQueryIntentT5, (q) => detectQueryIntentDetailed(q));
   const comparison = buildComparison(baseline, current);
 
   const lines = [];
-  lines.push("# Intent Replay Evaluation Results (2026-03-26)");
+  lines.push(`# ${title}`);
   lines.push("");
   lines.push("## Summary");
   lines.push("");
-  lines.push(`- Dataset: \`eval/intent_replay_dataset_2026-03-26.json\``);
+  lines.push(`- Dataset: \`${path.relative(__dirname, datasetPath)}\``);
   lines.push(`- Samples: **${dataset.length}**`);
   lines.push("- Baseline: **T4 (legacy decision order)**");
-  lines.push("- Current: **T5 (GENERAL disambiguation added)**");
-  lines.push(`- Accuracy (T4 -> T5): **${pct(baseline.accuracy)} -> ${pct(current.accuracy)} (${signedPctPoint(comparison.accuracyDeltaPctPoint)})**`);
+  lines.push("- Current: **T5.1-R2 (scored routing)**");
+  lines.push(
+    `- Accuracy (T4 -> T5.1-R2): **${pct(baseline.accuracy)} -> ${pct(current.accuracy)} (${signedPctPoint(comparison.accuracyDeltaPctPoint)})**`,
+  );
   lines.push("");
 
   pushMetricsSection(lines, "T4 Baseline Metrics", baseline);
-  pushMetricsSection(lines, "T5 Current Metrics", current);
+  pushMetricsSection(lines, "T5.1-R2 Current Metrics", current);
 
-  lines.push("## T4 vs T5 Delta");
+  lines.push("## T4 vs T5.1-R2 Delta");
   lines.push("");
   lines.push("### Per-intent Delta");
   lines.push("");
@@ -365,17 +515,21 @@ function main() {
 
   lines.push("### Confusion Shift (off-diagonal)");
   lines.push("");
-  lines.push("| Actual -> Predicted | Δ Count (T5 - T4) |");
+  lines.push("| Actual -> Predicted | Δ Count (T5.1-R2 - T4) |");
   lines.push("|---|---:|");
-  for (const c of comparison.confusionShift) {
-    lines.push(`| ${c.actual} -> ${c.predicted} | ${c.delta > 0 ? "+" : ""}${c.delta} |`);
+  if (comparison.confusionShift.length === 0) {
+    lines.push("| (none) | 0 |");
+  } else {
+    for (const c of comparison.confusionShift) {
+      lines.push(`| ${c.actual} -> ${c.predicted} | ${c.delta > 0 ? "+" : ""}${c.delta} |`);
+    }
   }
   lines.push("");
 
   lines.push("### Case-level Shift");
   lines.push("");
-  lines.push(`- Recovered mistakes (T4 wrong -> T5 correct): **${comparison.recoveredCases.length}**`);
-  lines.push(`- New regressions (T4 correct -> T5 wrong): **${comparison.regressedCases.length}**`);
+  lines.push(`- Recovered mistakes (T4 wrong -> T5.1-R2 correct): **${comparison.recoveredCases.length}**`);
+  lines.push(`- New regressions (T4 correct -> T5.1-R2 wrong): **${comparison.regressedCases.length}**`);
   lines.push("");
 
   const topRecovered = comparison.recoveredCases.slice(0, 10);
@@ -407,9 +561,11 @@ function main() {
   }
   lines.push("");
 
-  fs.writeFileSync(REPORT_PATH, `${lines.join("\n")}\n`, "utf8");
+  fs.writeFileSync(reportPath, `${lines.join("\n")}\n`, "utf8");
 
-  const summary = {
+  return {
+    datasetPath,
+    reportPath,
     samples: dataset.length,
     baseline: {
       accuracy: baseline.accuracy,
@@ -424,12 +580,33 @@ function main() {
       misclassified: current.misclassifiedCount,
       perIntent: current.perIntent,
       confusion: current.confusion,
+      scoreDiagnostics: current.scoreDiagnostics,
     },
     comparison,
   };
+}
+
+function main() {
+  const replay = evaluateDataset(
+    REPLAY_DATASET_PATH,
+    REPLAY_REPORT_PATH,
+    "Intent Replay Evaluation Results (2026-03-26)",
+  );
+
+  const calibration = evaluateDataset(
+    CALIBRATION_DATASET_PATH,
+    CALIBRATION_REPORT_PATH,
+    "Intent Calibration Evaluation Results (2026-03-26)",
+  );
+
+  const summary = {
+    replay,
+    calibration,
+  };
 
   console.log(JSON.stringify(summary, null, 2));
-  console.log(`\nWrote report: ${REPORT_PATH}`);
+  console.log(`\nWrote report: ${REPLAY_REPORT_PATH}`);
+  console.log(`Wrote report: ${CALIBRATION_REPORT_PATH}`);
 }
 
 main();
