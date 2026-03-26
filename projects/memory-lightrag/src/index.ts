@@ -1,6 +1,7 @@
 import { MemoryLightragConfigSchema } from "./config/schema.js";
 import { LightragAdapter } from "./adapter/lightrag.js";
 import { buildDomainContext, deriveRequestDomain, toWorkspace } from "./policy/domain-routing.js";
+import type { MemoryDomain } from "./policy/domain-routing.js";
 import { enforceWorkspace, resolveAllowedWorkspaces } from "./policy/access.js";
 import { isAllowedByDomain } from "./policy/source-tag.js";
 
@@ -34,6 +35,62 @@ function toResultText(item: unknown): string {
     typeof obj.content === "string" ? obj.content : "",
   ].filter(Boolean);
   return parts.join("\n");
+}
+
+function toSourceTag(source: any): string {
+  return String(source?.uri || source?.metadata?.filePath || source?.id || "");
+}
+
+function buildOntologyDetails(graph: any, domainCtx: any, domain: MemoryDomain) {
+  if (!graph || typeof graph !== "object") return undefined;
+
+  const rawSources = Array.isArray(graph.sources) ? graph.sources : [];
+  const sources = rawSources.filter((s: any) =>
+    isAllowedByDomain(toSourceTag(s), {
+      domain,
+      actorUserId: domainCtx.actorUserId,
+      groupId: domainCtx.groupId,
+    }),
+  );
+
+  const allowedEvidence = new Set<string>();
+  for (const source of sources) {
+    if (source?.id) allowedEvidence.add(String(source.id));
+    if (source?.uri) allowedEvidence.add(String(source.uri));
+    if (source?.metadata?.filePath) allowedEvidence.add(String(source.metadata.filePath));
+  }
+
+  const relationships = (Array.isArray(graph.relationships) ? graph.relationships : [])
+    .map((r: any) => {
+      const evidence = Array.isArray(r?.evidenceSourceIds)
+        ? r.evidenceSourceIds.filter((id: any) => allowedEvidence.has(String(id)))
+        : undefined;
+      return evidence !== undefined ? { ...r, evidenceSourceIds: evidence } : r;
+    })
+    .filter((r: any) => {
+      if (!Array.isArray(r?.evidenceSourceIds)) return true;
+      return r.evidenceSourceIds.length > 0;
+    });
+
+  const entities = (Array.isArray(graph.entities) ? graph.entities : []).filter((e: any) => {
+    const sourceTag = String(e?.sourceId || e?.filePath || "");
+    return !sourceTag || isAllowedByDomain(sourceTag, {
+      domain,
+      actorUserId: domainCtx.actorUserId,
+      groupId: domainCtx.groupId,
+    });
+  });
+
+  return {
+    stats: {
+      entityCount: entities.length,
+      relationCount: relationships.length,
+      sourceCount: sources.length,
+    },
+    entities: entities.slice(0, 20),
+    relations: relationships.slice(0, 20),
+    sources: sources.slice(0, 20),
+  };
 }
 
 export default {
@@ -144,6 +201,7 @@ export default {
                   filteredDropped: dropped,
                   resultCount: filtered.length,
                   redaction: "details.results_omitted",
+                  ontology: buildOntologyDetails(lr.graph, domainCtx, decision.domain),
                 };
                 api.logger.info("memory-lightrag search", details as any);
                 return {
@@ -164,6 +222,7 @@ export default {
                   domain: decision.domain,
                   workspace: enforced.workspace,
                   reasonCode: decision.reasonCode,
+                  ontology: buildOntologyDetails(lr.graph, domainCtx, decision.domain),
                 };
                 api.logger.warn("memory-lightrag fallback", details);
 
@@ -186,6 +245,7 @@ export default {
                 domain: decision.domain,
                 workspace: enforced.workspace,
                 reasonCode: decision.reasonCode,
+                ontology: buildOntologyDetails(lr.graph, domainCtx, decision.domain),
               };
               api.logger.info("memory-lightrag empty", details);
               return { content: [], details };
