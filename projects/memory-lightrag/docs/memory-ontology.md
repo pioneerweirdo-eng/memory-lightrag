@@ -226,17 +226,30 @@ Notes:
 - `intent` is rule-detected (`detectQueryIntent`).
 - `rerankWeights` comes from `getRerankWeights(intent)` and is finite-number normalized.
 
-#### T5 GENERAL disambiguation guardrails
+#### T5/T5.1-R2 GENERAL disambiguation guardrails
 
 `GENERAL` should be treated as a first-class intent, not just a fallback bucket.
 
-Observed T5 boundary behavior (aligned with `detectQueryIntent` precedence `WHY -> WHEN -> ENTITY -> GENERAL`):
+Current runtime behavior (implemented):
+- `detectQueryIntent` precedence is `WHY -> WHEN -> ENTITY -> GENERAL`.
+- `details.ontologyPolicy` currently emits implemented fields only:
+  - `intent`
+  - `rerankWeights`
+
+Observed boundary behavior:
 - **Keep GENERAL** for ambiguous/open-ended prompts with weak cues only.
-  - Examples: `what should we do next`, `which is better for now`, `什么情况`, `哪个更好`
+  - Examples: `what should we do next`, `which is better for now`, `什么情况`, `哪个更好`, `what is that`
 - **Do not keep GENERAL** when explicit intent signals are present.
   - WHY cues (`why`, `原因`, `导致`) should resolve to `WHY`
   - WHEN cues (`today`, `recently`, `近期`, `昨天`) should resolve to `WHEN`
   - ENTITY cues (`who`, `team`, `project`, `服务`, ownership/responsibility wording) should resolve to `ENTITY` unless an earlier-precedence cue already matched
+
+Scored-routing rollout note (planned):
+- Threshold keys are reserved for future rollout/canary tuning:
+  - `intent.scoredRouting.enabled`
+  - `intent.scoredRouting.minScore`
+  - `intent.scoredRouting.minMargin`
+- Until implemented, these keys are documentation-level knobs only.
 
 Troubleshooting with runtime fields:
 - For suspected GENERAL **false positives** (should be WHY/WHEN/ENTITY):

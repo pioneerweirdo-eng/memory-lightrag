@@ -37,7 +37,39 @@ const boundaryCases = [
   { query: "近期谁负责这个服务", expected: "WHEN" },
 ];
 
-for (const { query, expected } of [...classificationCases, ...boundaryCases]) {
+// Threshold-like scored routing boundaries represented by deterministic rules today.
+// These guard precision/recall edges where scored routing will later attach explicit minScore/minMargin knobs.
+const scoredRoutingBoundaryCases = [
+  // WHY precedence should win over temporal/entity hints.
+  { query: "why did this break yesterday", expected: "WHY" },
+  { query: "为什么这个服务今天失败", expected: "WHY" },
+
+  // WHEN requires strong temporal markers or (time/date + event anchor).
+  { query: "what time did deployment start", expected: "WHEN" },
+  { query: "which date was this issue released", expected: "WHEN" },
+  { query: "what is the time", expected: "GENERAL" },
+  { query: "what is the timeline", expected: "GENERAL" },
+
+  // ENTITY should require explicit entity nouns/hints, not weak open-ended prompts.
+  { query: "what is this service", expected: "ENTITY" },
+  { query: "which project is responsible for billing", expected: "ENTITY" },
+
+  // GENERAL protection: weak ambiguous prompts remain GENERAL.
+  { query: "which one is better", expected: "GENERAL" },
+  { query: "what is that", expected: "GENERAL" },
+  { query: "这是什么？", expected: "GENERAL" },
+  { query: "哪个更好？", expected: "GENERAL" },
+
+  // Compatibility guard: temporal cues still outrank entity cues in mixed prompts.
+  { query: "which team changed this recently", expected: "WHEN" },
+  { query: "最近哪个团队改了这个服务", expected: "WHEN" },
+];
+
+for (const { query, expected } of [
+  ...classificationCases,
+  ...boundaryCases,
+  ...scoredRoutingBoundaryCases,
+]) {
   const actual = detectQueryIntent(query);
   assert.equal(
     actual,
@@ -53,6 +85,9 @@ function assertFiniteWeights(intent, weights) {
     assert.equal(typeof value, "number", `${intent}.${key} must be a number`);
     assert.ok(Number.isFinite(value), `${intent}.${key} must be finite`);
   }
+
+  const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
+  assert.ok(Math.abs(total - 1) < 1e-9, `${intent} weights should sum to 1, got ${total}`);
 }
 
 for (const intent of intents) {
@@ -81,4 +116,6 @@ assert.equal(general.lexical, general.semantic, "GENERAL should keep balanced we
 console.log("intent-rerank.verify: OK");
 console.log(`- classification cases: ${classificationCases.length}`);
 console.log(`- boundary cases: ${boundaryCases.length}`);
+console.log(`- scored-routing boundary cases: ${scoredRoutingBoundaryCases.length}`);
 console.log(`- rerank intents checked: ${intents.length}`);
+console.log("- invariants: finite weights + sum-to-1 + GENERAL weak-query protection");

@@ -63,9 +63,13 @@ Decision: **Confidence-scored deterministic router** with compatibility-preservi
   1) Over-tuning to current 120-sample set;
   2) Margin thresholds too strict => too many GENERAL;
   3) Too loose => regress to false WHEN/ENTITY.
-- Rollback:
+- Rollback (planned knobs):
   - Feature flag `intent.scoredRouting.enabled`; default false in first rollout.
+  - Threshold knobs: `intent.scoredRouting.minScore`, `intent.scoredRouting.minMargin`.
   - Keep previous detector available as fallback strategy.
+- Current implementation status:
+  - Runtime currently uses rule precedence (`WHY -> WHEN -> ENTITY -> GENERAL`) in `detectQueryIntent`.
+  - Runtime `details.ontologyPolicy` fields are currently `intent` and `rerankWeights` only.
 - Metrics gates (T5.1-R2):
   - GENERAL recall >= 70%
   - Overall accuracy >= T4 - 1.0pp

@@ -19,7 +19,6 @@ const WHY_PATTERNS: RegExp[] = [
   /因果/,
 ];
 
-// Strong temporal markers that should map to WHEN directly.
 const STRONG_WHEN_PATTERNS: RegExp[] = [
   /\bwhen\b/i,
   /\bbefore\b/i,
@@ -51,14 +50,7 @@ const STRONG_WHEN_PATTERNS: RegExp[] = [
   /今年/,
 ];
 
-// Weaker temporal nouns need event context when paired with ambiguous words.
-const WHEN_TOPIC_PATTERNS: RegExp[] = [
-  /\btime\b/i,
-  /\bdate\b/i,
-  /\btimeline\b/i,
-  /时间/,
-  /日期/,
-];
+const WHEN_TOPIC_PATTERNS: RegExp[] = [/\btime\b/i, /\bdate\b/i, /\btimeline\b/i, /时间/, /日期/, /时间线/];
 
 const WHEN_EVENT_HINT_PATTERNS: RegExp[] = [
   /\bchange(?:d|s)?\b/i,
@@ -91,16 +83,10 @@ const WHEN_EVENT_HINT_PATTERNS: RegExp[] = [
   /截止/,
   /变更/,
   /出现/,
+  /改了/,
 ];
 
-const STRONG_ENTITY_PATTERNS: RegExp[] = [
-  /\bwho\b/i,
-  /\bwhere\b/i,
-  /谁/,
-  /哪位/,
-  /哪里/,
-  /哪儿/,
-];
+const STRONG_ENTITY_PATTERNS: RegExp[] = [/\bwho\b/i, /\bwhere\b/i, /谁/, /哪位/, /哪里/, /哪儿/];
 
 const ENTITY_NOUN_PATTERNS: RegExp[] = [
   /\bperson\b/i,
@@ -138,15 +124,6 @@ const ENTITY_NOUN_PATTERNS: RegExp[] = [
   /位置/,
 ];
 
-// Ambiguous prompts (what/which/什么/哪个/哪些) must be anchored by domain hints.
-const AMBIGUOUS_QUESTION_PATTERNS: RegExp[] = [
-  /\bwhat\b/i,
-  /\bwhich\b/i,
-  /什么/,
-  /哪个/,
-  /哪些/,
-];
-
 const ENTITY_HINT_PATTERNS: RegExp[] = [
   /\bcalled\b/i,
   /\bowner\b/i,
@@ -171,9 +148,11 @@ const ENTITY_HINT_PATTERNS: RegExp[] = [
   /清单/,
   /有哪些/,
   /是谁/,
+  /负责/,
 ];
 
-// Guardrails: very weak prompts should stay GENERAL unless stronger cues exist.
+const AMBIGUOUS_QUESTION_PATTERNS: RegExp[] = [/\bwhat\b/i, /\bwhich\b/i, /什么/, /哪个/, /哪些/];
+
 const GENERAL_WEAK_QUERY_PATTERNS: RegExp[] = [
   /^\s*(?:what|which)\s+is\s+(?:this|that|it)\s*[?.!]?\s*$/i,
   /^\s*(?:what|which)\s+(?:one\s+)?is\s+better\s*[?.!]?\s*$/i,
@@ -181,12 +160,27 @@ const GENERAL_WEAK_QUERY_PATTERNS: RegExp[] = [
   /^\s*哪个更好\s*[？?]?\s*$/,
 ];
 
+const SUMMARY_REQUEST_PATTERNS: RegExp[] = [
+  /\bsummar(?:y|ize)\b/i,
+  /\brecap\b/i,
+  /\boverview\b/i,
+  /\bbrief\b/i,
+  /总结/,
+  /概述/,
+  /摘要/,
+  /复盘/,
+];
+
 function matchesAny(text: string, patterns: RegExp[]): boolean {
-  return patterns.some((pattern) => pattern.test(text));
+  return patterns.some((p) => p.test(text));
 }
 
 function isWeakGeneralQuery(text: string): boolean {
   return matchesAny(text, GENERAL_WEAK_QUERY_PATTERNS);
+}
+
+function isSummaryRequest(text: string): boolean {
+  return matchesAny(text, SUMMARY_REQUEST_PATTERNS);
 }
 
 function isWhenIntent(text: string): boolean {
@@ -195,11 +189,8 @@ function isWhenIntent(text: string): boolean {
   const hasWhenTopic = matchesAny(text, WHEN_TOPIC_PATTERNS);
   if (!hasWhenTopic) return false;
 
-  // Ambiguous "what/which" + "time/date" must include an event anchor.
   const hasAmbiguousQuestion = matchesAny(text, AMBIGUOUS_QUESTION_PATTERNS);
-  if (hasAmbiguousQuestion) {
-    return matchesAny(text, WHEN_EVENT_HINT_PATTERNS);
-  }
+  if (hasAmbiguousQuestion) return matchesAny(text, WHEN_EVENT_HINT_PATTERNS);
 
   if (isWeakGeneralQuery(text)) return false;
   return true;
@@ -210,14 +201,9 @@ function isEntityIntent(text: string): boolean {
 
   const hasEntityNoun = matchesAny(text, ENTITY_NOUN_PATTERNS);
   const hasEntityHint = matchesAny(text, ENTITY_HINT_PATTERNS);
-  const hasAmbiguousQuestion = matchesAny(text, AMBIGUOUS_QUESTION_PATTERNS);
 
   if (isWeakGeneralQuery(text) && !hasEntityNoun && !hasEntityHint) return false;
-
-  if (hasEntityNoun || hasEntityHint) return true;
-  if (!hasAmbiguousQuestion) return false;
-
-  return false;
+  return hasEntityNoun || hasEntityHint;
 }
 
 export function detectQueryIntent(query: string): QueryIntent {
@@ -226,10 +212,14 @@ export function detectQueryIntent(query: string): QueryIntent {
   const normalized = query.trim();
   if (!normalized) return "GENERAL";
 
-  // Priority is fixed for compatibility: WHY -> WHEN -> ENTITY -> GENERAL.
   if (matchesAny(normalized, WHY_PATTERNS)) return "WHY";
+  if (isSummaryRequest(normalized)) return "GENERAL";
   if (isWhenIntent(normalized)) return "WHEN";
   if (isEntityIntent(normalized)) return "ENTITY";
-
   return "GENERAL";
+}
+
+export function detectQueryIntentDetailed(query: string) {
+  const intent = detectQueryIntent(query);
+  return { intent };
 }
