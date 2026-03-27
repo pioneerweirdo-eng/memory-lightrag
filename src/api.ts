@@ -1,1 +1,1 @@
-export * from "/app/extensions/memory-lancedb/api.ts";
+export * from "./index.js";

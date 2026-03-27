@@ -1,0 +1,122 @@
+[
+  {
+    "id": "Q052",
+    "expected_intent": "WHY"
+  },
+  {
+    "id": "Q053",
+    "expected_intent": "WHY"
+  },
+  {
+    "id": "Q054",
+    "expected_intent": "WHY"
+  },
+  {
+    "id": "Q055",
+    "expected_intent": "WHY"
+  },
+  {
+    "id": "Q056",
+    "expected_intent": "WHY"
+  },
+  {
+    "id": "Q057",
+    "expected_intent": "WHY"
+  },
+  {
+    "id": "Q065",
+    "expected_intent": "WHEN"
+  },
+  {
+    "id": "Q066",
+    "expected_intent": "WHEN"
+  },
+  {
+    "id": "Q067",
+    "expected_intent": "WHEN"
+  },
+  {
+    "id": "Q068",
+    "expected_intent": "WHEN"
+  },
+  {
+    "id": "Q069",
+    "expected_intent": "WHEN"
+  },
+  {
+    "id": "Q070",
+    "expected_intent": "WHEN"
+  },
+  {
+    "id": "Q078",
+    "expected_intent": "ENTITY"
+  },
+  {
+    "id": "Q079",
+    "expected_intent": "ENTITY"
+  },
+  {
+    "id": "Q080",
+    "expected_intent": "ENTITY"
+  },
+  {
+    "id": "Q081",
+    "expected_intent": "ENTITY"
+  },
+  {
+    "id": "Q082",
+    "expected_intent": "ENTITY"
+  },
+  {
+    "id": "Q083",
+    "expected_intent": "ENTITY"
+  },
+  {
+    "id": "Q109",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q110",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q111",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q112",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q113",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q114",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q115",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q116",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q117",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q118",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q119",
+    "expected_intent": "GENERAL"
+  },
+  {
+    "id": "Q120",
+    "expected_intent": "GENERAL"
+  }
+]

@@ -1,53 +1,89 @@
+/**
+ * Runtime-only schema/constants to avoid external deps in local plugin loading.
+ */
+
 export interface LightragConfig {
   baseUrl: string;
   apiKey?: string;
-  timeoutMs: number;
-  retryCount: number;
-  recallTopK: number;
-  minScore: number;
-  recallBudgetChars: number;
-  includeCitations: boolean;
-  enableSafetyFilter: boolean;
+  timeout: number;
 }
 
-const DEFAULTS: Omit<LightragConfig, "baseUrl"> = {
-  timeoutMs: 6000,
-  retryCount: 1,
-  recallTopK: 6,
-  minScore: 0.55,
-  recallBudgetChars: 1800,
-  includeCitations: true,
-  enableSafetyFilter: true,
-};
-
-export function parseLightragConfig(input: unknown): LightragConfig {
-  const cfg = (input ?? {}) as Record<string, unknown>;
-  const baseUrl = String(cfg.baseUrl ?? "").trim();
-  if (!baseUrl) {
-    throw new Error("memory-lightrag: config.baseUrl is required");
-  }
-  const out: LightragConfig = {
-    baseUrl,
-    apiKey: typeof cfg.apiKey === "string" ? cfg.apiKey : undefined,
-    timeoutMs: Number(cfg.timeoutMs ?? DEFAULTS.timeoutMs),
-    retryCount: Number(cfg.retryCount ?? DEFAULTS.retryCount),
-    recallTopK: Number(cfg.recallTopK ?? DEFAULTS.recallTopK),
-    minScore: Number(cfg.minScore ?? DEFAULTS.minScore),
-    recallBudgetChars: Number(cfg.recallBudgetChars ?? DEFAULTS.recallBudgetChars),
-    includeCitations:
-      typeof cfg.includeCitations === "boolean"
-        ? cfg.includeCitations
-        : DEFAULTS.includeCitations,
-    enableSafetyFilter:
-      typeof cfg.enableSafetyFilter === "boolean"
-        ? cfg.enableSafetyFilter
-        : DEFAULTS.enableSafetyFilter,
-  };
-  if (out.timeoutMs < 1000 || out.timeoutMs > 30000) throw new Error("timeoutMs out of range");
-  if (out.retryCount < 0 || out.retryCount > 3) throw new Error("retryCount out of range");
-  if (out.recallTopK < 1 || out.recallTopK > 20) throw new Error("recallTopK out of range");
-  if (out.minScore < 0 || out.minScore > 1) throw new Error("minScore out of range");
-  if (out.recallBudgetChars < 200 || out.recallBudgetChars > 8000)
-    throw new Error("recallBudgetChars out of range");
-  return out;
+export interface DomainConfig {
+  personalPrefix?: string;
+  groupPrefix?: string;
+  sharedWorkspace?: string;
 }
+
+export interface AccessConfig {
+  allowSafeDowngrade?: boolean;
+}
+
+export interface IntentScoredRoutingConfig {
+  enabled?: boolean;
+  profile?: "strict" | "default" | "recall";
+  minTopScore?: number;
+  minMargin?: number;
+}
+
+export interface IntentConfig {
+  scoredRouting?: IntentScoredRoutingConfig;
+}
+
+export interface MemoryLightragConfig {
+  lightrag?: LightragConfig;
+  fallbackEnabled?: boolean;
+  verbose?: boolean;
+  domains?: DomainConfig;
+  access?: AccessConfig;
+  intent?: IntentConfig;
+}
+
+export const MemoryLightragConfigSchema = {
+  type: "object",
+  additionalProperties: true,
+  properties: {
+    lightrag: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        baseUrl: { type: "string", default: "http://lightrag:9621" },
+        apiKey: { type: "string" },
+        timeout: { type: "number", default: 30000 },
+      },
+    },
+    fallbackEnabled: { type: "boolean", default: true },
+    verbose: { type: "boolean", default: false },
+    domains: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        personalPrefix: { type: "string", default: "u_" },
+        groupPrefix: { type: "string", default: "g_" },
+        sharedWorkspace: { type: "string", default: "global_shared" },
+      },
+    },
+    access: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        allowSafeDowngrade: { type: "boolean", default: false },
+      },
+    },
+    intent: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        scoredRouting: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            enabled: { type: "boolean", default: true },
+            profile: { type: "string", enum: ["strict", "default", "recall"], default: "default" },
+            minTopScore: { type: "number", default: 0.9 },
+            minMargin: { type: "number", default: 0.35 },
+          },
+        },
+      },
+    },
+  },
+} as const;
