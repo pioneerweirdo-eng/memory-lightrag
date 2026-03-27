@@ -47,11 +47,11 @@
 
 ## 3) 文档收敛映射（旧文档 -> 现口径）
 
-- `docs/IMPLEMENTATION_ROLLOUT_PLAN.md`：保留为实施基线；最终门禁以本文为准。
-- `docs/EXECUTION_PLAN_2026-03-24_to-25.md`：保留为历史执行计划，不再作为当前状态依据。
-- `docs/SUBAGENT_TASK_BOARD_2026-03-25.md`：保留为编排记录；当前以实际验收结果为准。
-- `docs/SESSIONS_SPAWN_BUG_2026-03-25.md`：保留为平台阻断记录（与 memory-lightrag 逻辑层解耦）。
-- `docs/TRACELOG.md`：保留为时序追踪，新增本次对齐里程碑。
+- [`docs/archived/IMPLEMENTATION_ROLLOUT_PLAN.md`](archived/IMPLEMENTATION_ROLLOUT_PLAN.md)：保留为实施基线；最终门禁以本文为准。
+- [`docs/archived/EXECUTION_PLAN_2026-03-24_to-25.md`](archived/EXECUTION_PLAN_2026-03-24_to-25.md)：保留为历史执行计划，不再作为当前状态依据。
+- [`docs/archived/SUBAGENT_TASK_BOARD_2026-03-25.md`](archived/SUBAGENT_TASK_BOARD_2026-03-25.md)：保留为编排记录；当前以实际验收结果为准。
+- [`docs/archived/SESSIONS_SPAWN_BUG_2026-03-25.md`](archived/SESSIONS_SPAWN_BUG_2026-03-25.md)：保留为平台阻断记录（与 memory-lightrag 逻辑层解耦）。
+- [`docs/archived/TRACELOG.md`](archived/TRACELOG.md)：保留为时序追踪，新增本次对齐里程碑。
 
 ---
 
@@ -68,8 +68,8 @@
 ## 5) 下一步（最小闭环）
 
 1. 在非争用会话完成一次 P1 E2E 可见性复验（success + fallback 各 1 次）
-2. 将复验命令与关键输出追加到 `docs/EVIDENCE_RUN_*.log`
-3. 在 `docs/TRACELOG.md` 补一条“门禁是否全部达成”的结论行
+2. 将复验命令与关键输出追加到 [`docs/archived/EVIDENCE_RUN_*.md`](archived/GATE_SUMMARY_2026-03-27.md)
+3. 在 [`docs/archived/TRACELOG.md`](archived/TRACELOG.md) 补一条“门禁是否全部达成”的结论行
 
 ---
 

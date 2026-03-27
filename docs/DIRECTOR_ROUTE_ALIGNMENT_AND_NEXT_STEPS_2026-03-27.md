@@ -441,7 +441,9 @@ And explicitly defer:
 This document is intended to guide the next implementation step without overfitting the system to a handcrafted feature-engineering path.
 
 It should be read together with:
-- `MAMGA_ENVIRONMENT_MEMORY_MODEL_ANALYSIS_2026-03-26.md`
-- `TARGET_ALIGNMENT_AND_BOUNDARIES.md`
-- `memory-ontology.md`
-- T4 / T5 / T5.1 routing and evaluation docs
+- [MAMGA_ENVIRONMENT_MEMORY_MODEL_ANALYSIS_2026-03-26](archived/MAMGA_ENVIRONMENT_MEMORY_MODEL_ANALYSIS_2026-03-26.md)
+- [TARGET_ALIGNMENT_AND_BOUNDARIES](TARGET_ALIGNMENT_AND_BOUNDARIES.md)
+- [memory-ontology](memory-ontology.md)
+- [T4_EXECUTION_PLAN_2026-03-26](T4_EXECUTION_PLAN_2026-03-26.md) / [T4_REVIEW_REPORT_2026-03-26](T4_REVIEW_REPORT_2026-03-26.md)
+- [T5_EXECUTION_PLAN_2026-03-26](T5_EXECUTION_PLAN_2026-03-26.md) / [T5_REVIEW_REPORT_2026-03-26](T5_REVIEW_REPORT_2026-03-26.md)
+- [t5.1-r2/ARCHITECTURE](t5.1-r2/ARCHITECTURE.md) / [t5.1-r2/T5_1_R2_AUDIT_REPORT_2026-03-26](t5.1-r2/T5_1_R2_AUDIT_REPORT_2026-03-26.md)
