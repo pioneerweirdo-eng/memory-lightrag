@@ -75,6 +75,7 @@ export interface MemorySource {
 export interface MemorySearchItem {
   id: string;
   content: string;
+  text?: string; // alias for compatibility with ontology doc/examples
   score: number | null;
   source: string;
   entities: MemoryEntity[];
@@ -94,6 +95,9 @@ export interface MemorySearchResult {
     truncated: boolean;
     latencyMs: number;
     requestId?: string;
+    entityCount?: number;
+    relationCount?: number;
+    sourceCount?: number;
   };
   fallback?: boolean;
   reason?: MemoryErrorType;

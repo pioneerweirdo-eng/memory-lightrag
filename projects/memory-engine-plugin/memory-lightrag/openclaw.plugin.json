@@ -3,18 +3,35 @@
   "kind": "memory",
   "configSchema": {
     "type": "object",
-    "additionalProperties": false,
+    "additionalProperties": true,
     "properties": {
-      "baseUrl": { "type": "string" },
-      "apiKey": { "type": "string" },
-      "timeoutMs": { "type": "number", "minimum": 1000, "maximum": 30000 },
-      "retryCount": { "type": "number", "minimum": 0, "maximum": 3 },
-      "recallTopK": { "type": "number", "minimum": 1, "maximum": 20 },
-      "minScore": { "type": "number", "minimum": 0, "maximum": 1 },
-      "recallBudgetChars": { "type": "number", "minimum": 200, "maximum": 8000 },
-      "includeCitations": { "type": "boolean" },
-      "enableSafetyFilter": { "type": "boolean" }
-    },
-    "required": ["baseUrl"]
+      "lightrag": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "baseUrl": { "type": "string" },
+          "apiKey": { "type": "string" },
+          "timeout": { "type": "number" }
+        }
+      },
+      "fallbackEnabled": { "type": "boolean" },
+      "verbose": { "type": "boolean" },
+      "intent": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "scoredRouting": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "profile": { "type": "string", "enum": ["strict", "default", "recall"] },
+              "minTopScore": { "type": "number" },
+              "minMargin": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
   }
 }
