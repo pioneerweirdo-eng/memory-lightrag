@@ -8,9 +8,9 @@
 - Gate3 (diagnostics): PASS
 
 ### Evidence
-- Gate2 evidence: `docs/archived/EVIDENCE_RUN_20260327T141158Z_GATE2_CLI_DEEP_RETRY2.md`
-- Gate summary: `docs/archived/GATE_SUMMARY_2026-03-27.md`
-- Trace: `docs/archived/TRACELOG.md`
+- Gate2 evidence: [EVIDENCE_RUN_20260327T141158Z_GATE2_CLI_DEEP_RETRY2](archived/EVIDENCE_RUN_20260327T141158Z_GATE2_CLI_DEEP_RETRY2.md)
+- Gate summary: [GATE_SUMMARY_2026-03-27](archived/GATE_SUMMARY_2026-03-27.md)
+- Trace: [TRACELOG](archived/TRACELOG.md)
 
 ### Config Notes (for reproducibility)
 - memory-lightrag plugin: enabled, verbose=true

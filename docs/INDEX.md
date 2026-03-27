@@ -1,13 +1,13 @@
 # Documentation Index (memory-lightrag)
 
 ## 0. Quick entry points
-- **Release ready status**: `RELEASE_READY_STATUS_2026-03-27.md`
-- **Release checklist**: `RELEASE_CHECKLIST.md`
-- **Final alignment package**: `FINAL_ALIGNMENT_PACKAGE_2026-03-27.md`
-- **LightRAG API reference**: `LIGHTRAG_API_REFERENCE.md`
-- **Memory ontology**: `memory-ontology.md`
-- **Target alignment & boundaries**: `TARGET_ALIGNMENT_AND_BOUNDARIES.md`
-- **Observability runbook**: `T4_OBSERVABILITY_RUNBOOK_2026-03-26.md`
+- **Release ready status**: [RELEASE_READY_STATUS_2026-03-27](RELEASE_READY_STATUS_2026-03-27.md)
+- **Release checklist**: [RELEASE_CHECKLIST](RELEASE_CHECKLIST.md)
+- **Final alignment package**: [FINAL_ALIGNMENT_PACKAGE_2026-03-27](FINAL_ALIGNMENT_PACKAGE_2026-03-27.md)
+- **LightRAG API reference**: [LIGHTRAG_API_REFERENCE](LIGHTRAG_API_REFERENCE.md)
+- **Memory ontology**: [memory-ontology](memory-ontology.md)
+- **Target alignment & boundaries**: [TARGET_ALIGNMENT_AND_BOUNDARIES](TARGET_ALIGNMENT_AND_BOUNDARIES.md)
+- **Observability runbook**: [T4_OBSERVABILITY_RUNBOOK_2026-03-26](T4_OBSERVABILITY_RUNBOOK_2026-03-26.md)
 
 ## 1. Execution & review cycle (T4/T5)
 - `T4_EXECUTION_PLAN_2026-03-26.md`
