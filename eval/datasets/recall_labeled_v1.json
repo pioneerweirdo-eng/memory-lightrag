@@ -1,0 +1,122 @@
+[
+  {
+    "id": "RQ-001",
+    "query": "what happened with memory-lightrag on 2026-03-28",
+    "expected_memory_kind": "episode",
+    "expected_keywords": ["memory-lightrag", "LightRAG", "write-read closed loop"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-002",
+    "query": "what did the user say about precision in memory reconstruction",
+    "expected_memory_kind": "preference",
+    "expected_keywords": ["precision", "time window", "conversation chain", "whole-day summary"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-003",
+    "query": "what decision was made about session-logs workflow",
+    "expected_memory_kind": "decision",
+    "expected_keywords": ["session-logs", "official workflow", "jsonl grepping", "fallback"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-004",
+    "query": "what embedding model issue was identified on 2026-03-25",
+    "expected_memory_kind": "episode",
+    "expected_keywords": ["embedding model", "version mismatch", "semantic drift", "revert"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-005",
+    "query": "what preference was established about LightRAG adoption",
+    "expected_memory_kind": "preference",
+    "expected_keywords": ["selective adoption", "LightRAG", "not copy entire system"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-006",
+    "query": "what was decided about the GENERAL-WHEN confusion pair rollout",
+    "expected_memory_kind": "decision",
+    "expected_keywords": ["GENERAL-WHEN", "production", "live accuracy", "80%"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-007",
+    "query": "what happened during the Gate2 CLI deep retry route on 2026-03-22",
+    "expected_memory_kind": "episode",
+    "expected_keywords": ["Gate2", "CLI deep retry", "first confirmed pass", "auth/embed failures"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-008",
+    "query": "what path confusion was identified on 2026-03-27",
+    "expected_memory_kind": "episode",
+    "expected_keywords": ["path confusion", "workspace/docs", "archived", "false-negative"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-009",
+    "query": "what rule was established about production deployment when offline and live accuracy differ",
+    "expected_memory_kind": "preference",
+    "expected_keywords": ["live accuracy", "offline eval", "10 percentage points", "investigation"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-010",
+    "query": "what was the conclusion about Gate3 production readiness on 2026-03-31",
+    "expected_memory_kind": "decision",
+    "expected_keywords": ["Gate3", "production-ready", "clearly recovered pass", "new features"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-011",
+    "query": "when was the plugin loading test first successful",
+    "expected_memory_kind": "episode",
+    "expected_keywords": ["plugin loading", "export/path compatibility", "memory-lightrag"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-012",
+    "query": "what confusion pairs were added after the 2026-03-24 holdout eval",
+    "expected_memory_kind": "decision",
+    "expected_keywords": ["GENERAL-ENTITY", "WHEN-GENERAL", "ENTITY-GENERAL", "confusion pairs", "holdout eval"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-013",
+    "query": "what is the policy for adding new confusion pairs to production routing",
+    "expected_memory_kind": "preference",
+    "expected_keywords": ["confusion pairs", "8 examples", "evaluation dataset", "production routing"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-014",
+    "query": "what happened on 2026-03-23 with intent routing deployment",
+    "expected_memory_kind": "episode",
+    "expected_keywords": ["intent routing", "production deployment", "offline 87%", "live 71%"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  },
+  {
+    "id": "RQ-015",
+    "query": "what was the team convention for confusion pair documentation",
+    "expected_memory_kind": "preference",
+    "expected_keywords": ["8 documented examples", "evaluation dataset", "production routing"],
+    "workspace": "global_shared",
+    "domain": "shared"
+  }
+]

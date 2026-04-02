@@ -1,0 +1,334 @@
+[
+  {
+    "id": "EX-EP001",
+    "source": "memory/2026-03-28.md",
+    "turn_text": "User clarified that the missing/high-value context for memory-lightrag was not just cron summaries; the key continuity lives in the Director main chat around these themes: asked to first commit git, then organize project docs, then find the next target and keep advancing through dialogue.",
+    "expected": {
+      "kind": "episode",
+      "summary": "User clarified memory-lightrag continuity lives in Director main chat, not cron summaries",
+      "participants": ["user"],
+      "timestamp": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-EP002",
+    "source": "memory/2026-03-28.md",
+    "turn_text": "Important correction: using raw ~/.openclaw/agents/director/sessions/*.jsonl works, but for prior-chat lookup the preferred path is the official session-logs workflow/skill first; direct jsonl grepping should be fallback, not default.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Established session-logs workflow as preferred path for prior-chat lookup, jsonl grepping as fallback",
+      "participants": [],
+      "timestamp": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-EP003",
+    "source": "memory/2026-03-28.md",
+    "turn_text": "Recovered main project chain from Director chat on 2026-03-22: plugin architecture kickoff and LightRAG adaptation planning landed, user explicitly required selective adoption of LightRAG, installed and adopted academic-deep-research and agent-team-orchestration.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Recovered project chain: plugin architecture kickoff, selective LightRAG adoption, academic-deep-research and agent-team-orchestration adoption",
+      "participants": [],
+      "timestamp": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-EP004",
+    "source": "memory/2026-03-28-memory-lightrag-real-case.md",
+    "turn_text": "真实项目记忆：2026-03-28 已确认 memory-lightrag 直连 LightRAG 后端 http://lightrag:9621 可完成写入与查询闭环。",
+    "expected": {
+      "kind": "episode",
+      "summary": "Confirmed memory-lightrag write-read closed loop via LightRAG backend http://lightrag:9621",
+      "participants": [],
+      "timestamp": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-EP005",
+    "source": "memory/2026-03-28-memory-lightrag-real-case.md",
+    "turn_text": "关键上下文：此前误测 127.0.0.1:9621 失败，改为 http://lightrag:9621 后成功。",
+    "expected": {
+      "kind": "episode",
+      "summary": "Previously failed connecting to 127.0.0.1:9621; switched to http://lightrag:9621 and succeeded",
+      "participants": [],
+      "timestamp": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-EP006",
+    "source": "memory/2026-03-25.md",
+    "turn_text": "After reviewing the retrieval quality degradation, I identified that the embedding model version mismatch between indexing and query was causing semantic drift. Switched back to the previous embedding model version and saw immediate improvement in recall accuracy.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Identified embedding model version mismatch as root cause of retrieval degradation; reverted to previous version and saw improvement",
+      "participants": [],
+      "timestamp": "2026-03-25"
+    }
+  },
+  {
+    "id": "EX-EP007",
+    "source": "memory/2026-03-23.md",
+    "turn_text": "Deployed the new intent routing rules to production on 2026-03-23. The confusion pair GENERAL-WHEN showed 87% accuracy in offline eval but dropped to 71% in live traffic. Monitoring closely.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Deployed new intent routing rules to production; observed drop from 87% to 71% accuracy on GENERAL-WHEN confusion pair in live vs offline",
+      "participants": [],
+      "timestamp": "2026-03-23"
+    }
+  },
+  {
+    "id": "EX-EP008",
+    "source": "memory/2026-03-22.md",
+    "turn_text": "The Gate2 CLI deep retry route achieved its first confirmed pass during the 2026-03-22 window. Auth/embed failures were still present for some agent profiles but the critical path succeeded.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Gate2 CLI deep retry route achieved first confirmed pass; auth/embed failures still present for some profiles",
+      "participants": [],
+      "timestamp": "2026-03-22"
+    }
+  },
+  {
+    "id": "EX-EP009",
+    "source": "memory/2026-03-27.md",
+    "turn_text": "路径混淆 (workspace/docs vs project docs/archived/) 被识别为检索假阴性的主要来源。在 Gate2 证据链中发现了强archived证据，包括 EVIDENCE_RUN_20260327T141158Z_GATE2_CLI_DEEP_RETRY2.md。",
+    "expected": {
+      "kind": "episode",
+      "summary": "Path confusion (workspace/docs vs project docs/archived/) identified as major false-negative source in retrieval; found strong archived Gate2 evidence",
+      "participants": [],
+      "timestamp": "2026-03-27"
+    }
+  },
+  {
+    "id": "EX-EP010",
+    "source": "memory/2026-03-21.md",
+    "turn_text": "首次完成 memory-lightrag 插件加载测试。遇到 'Cannot find module openclaw/plugin-sdk/plugin-entry' 错误，随后解决 export/path 兼容性问题。",
+    "expected": {
+      "kind": "episode",
+      "summary": "First successful memory-lightrag plugin loading test; resolved export/path compatibility issues after initial module-not-found error",
+      "participants": [],
+      "timestamp": "2026-03-21"
+    }
+  },
+  {
+    "id": "EX-EP011",
+    "source": "memory/2026-03-31.md",
+    "turn_text": "Memory reconstruction of 2026-03-27 noon to 2026-03-28 03:00 CST window confirmed: Gate3 still lacks a clearly recovered pass in that window. Mixed environment signals: some Gate2 success routes existed while other agents/profiles still showed auth/embed failures.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Memory reconstruction confirmed Gate3 lacks confirmed pass in 2026-03-27 noon to 2026-03-28 03:00 CST window; mixed auth/embed signals",
+      "participants": [],
+      "timestamp": "2026-03-31"
+    }
+  },
+  {
+    "id": "EX-EP012",
+    "source": "memory/2026-03-24.md",
+    "turn_text": "On 2026-03-24, after running the holdout eval, we found 3 new confusion pairs that were not in the training set: GENERAL-ENTITY, WHEN-GENERAL, and ENTITY-GENERAL. These were added to confusion_routing_v1.json for the next eval round.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Holdout eval revealed 3 new confusion pairs (GENERAL-ENTITY, WHEN-GENERAL, ENTITY-GENERAL) not in training set; added to confusion_routing_v1.json",
+      "participants": [],
+      "timestamp": "2026-03-24"
+    }
+  },
+  {
+    "id": "EX-DC001",
+    "source": "memory/2026-03-28.md",
+    "turn_text": "Decision: use official session-logs workflow as default for prior-chat lookup, not direct jsonl grepping.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Use official session-logs workflow as default for prior-chat lookup, not direct jsonl grepping",
+      "effectiveAt": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-DC002",
+    "source": "memory/2026-03-28.md",
+    "turn_text": "Decision: adopt selective LightRAG integration — take only what the project needs, do not copy the entire system wholesale.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Selective adoption of LightRAG — take only what the project needs, do not copy the entire system wholesale",
+      "effectiveAt": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-DC003",
+    "source": "memory/2026-03-28-memory-lightrag-real-case.md",
+    "turn_text": "确认：使用 http://lightrag:9621 作为 LightRAG 后端地址（不是 127.0.0.1:9621）。",
+    "expected": {
+      "kind": "decision",
+      "statement": "Use http://lightrag:9621 as LightRAG backend address, not 127.0.0.1:9621",
+      "effectiveAt": "2026-03-28"
+    }
+  },
+  {
+    "id": "EX-DC004",
+    "source": "memory/2026-03-25.md",
+    "turn_text": "Decision: revert embedding model to the previous stable version for both indexing and query to eliminate semantic drift.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Revert embedding model to previous stable version for both indexing and query to eliminate semantic drift",
+      "effectiveAt": "2026-03-25"
+    }
+  },
+  {
+    "id": "EX-DC005",
+    "source": "memory/2026-03-23.md",
+    "turn_text": "Decision: do not roll out GENERAL-WHEN confusion pair handling to production until live accuracy is above 80%, given the 16-point gap between offline and live performance.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Do not roll out GENERAL-WHEN confusion pair handling to production until live accuracy exceeds 80%",
+      "effectiveAt": "2026-03-23"
+    }
+  },
+  {
+    "id": "EX-DC006",
+    "source": "memory/2026-03-24.md",
+    "turn_text": "Decision: add GENERAL-ENTITY, WHEN-GENERAL, and ENTITY-GENERAL confusion pairs to the evaluation dataset before the next production push.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Add GENERAL-ENTITY, WHEN-GENERAL, and ENTITY-GENERAL confusion pairs to the evaluation dataset before next production push",
+      "effectiveAt": "2026-03-24"
+    }
+  },
+  {
+    "id": "EX-DC007",
+    "source": "memory/2026-03-22.md",
+    "turn_text": "Decision: prioritize the critical path for Gate2 CLI retry route — do not block on auth/embed failures that only affect secondary agent profiles.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Prioritize critical path for Gate2 CLI retry route; do not block on auth/embed failures affecting only secondary agent profiles",
+      "effectiveAt": "2026-03-22"
+    }
+  },
+  {
+    "id": "EX-DC008",
+    "source": "memory/2026-03-21.md",
+    "turn_text": "Decision: fix export and path compatibility issues in the plugin loader before attempting further memory-lightrag integration tests.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Fix export and path compatibility issues in plugin loader before further memory-lightrag integration tests",
+      "effectiveAt": "2026-03-21"
+    }
+  },
+  {
+    "id": "EX-DC009",
+    "source": "memory/2026-03-31.md",
+    "turn_text": "Decision: Gate3 must have a clearly recovered pass before it can be considered production-ready; no new features until Gate3 is closed.",
+    "expected": {
+      "kind": "decision",
+      "statement": "Gate3 must have a clearly recovered pass before production-ready status; block new features until Gate3 is closed",
+      "effectiveAt": "2026-03-31"
+    }
+  },
+  {
+    "id": "EX-PF001",
+    "source": "memory/2026-03-28.md",
+    "turn_text": "User values precision in memory reconstruction: when reconstructing prior work, prefer the exact requested time window and the exact conversation chain, not a coarse whole-day summary.",
+    "expected": {
+      "kind": "preference",
+      "owner": "user",
+      "statement": "Prefer exact requested time window and conversation chain over coarse whole-day summaries when reconstructing prior work",
+      "scope": "memory reconstruction"
+    }
+  },
+  {
+    "id": "EX-PF002",
+    "source": "memory/2026-03-28.md",
+    "turn_text": "User explicitly requires selective adoption of LightRAG — the project should take only what it needs, not copy the entire system wholesale.",
+    "expected": {
+      "kind": "preference",
+      "owner": "user",
+      "statement": "Selective adoption of LightRAG only — take what the project needs, do not copy the entire system",
+      "scope": "technology adoption"
+    }
+  },
+  {
+    "id": "EX-PF003",
+    "source": "memory/2026-03-28-memory-lightrag-real-case.md",
+    "turn_text": "项目判断：当前 LightRAG 后端基础链路可用；memory-lightrag 插件整体仍需继续做插件层真实案例验证。",
+    "expected": {
+      "kind": "preference",
+      "owner": "project",
+      "statement": "memory-lightrag plugin requires real case validation at plugin layer before declaring full readiness",
+      "scope": "memory-lightrag project"
+    }
+  },
+  {
+    "id": "EX-PF004",
+    "source": "memory/2026-03-25.md",
+    "turn_text": "The team has established that embedding model versions must remain synchronized between indexing and query — any version drift must be resolved before deployment.",
+    "expected": {
+      "kind": "preference",
+      "owner": "team",
+      "statement": "Embedding model versions must remain synchronized between indexing and query; any drift must be resolved before deployment",
+      "scope": "deployment"
+    }
+  },
+  {
+    "id": "EX-PF005",
+    "source": "memory/2026-03-23.md",
+    "turn_text": "Rule: do not ship production features where live accuracy is more than 10 percentage points below offline eval accuracy without additional investigation.",
+    "expected": {
+      "kind": "preference",
+      "owner": "team",
+      "statement": "Do not ship production features where live accuracy exceeds 10pp below offline eval accuracy without additional investigation",
+      "scope": "production rollout"
+    }
+  },
+  {
+    "id": "EX-PF006",
+    "source": "memory/2026-03-24.md",
+    "turn_text": "Team convention: all new confusion pairs must be documented in the evaluation dataset with at least 8 examples before being used in production routing decisions.",
+    "expected": {
+      "kind": "preference",
+      "owner": "team",
+      "statement": "All new confusion pairs must have at least 8 documented examples in the evaluation dataset before use in production routing",
+      "scope": "intent routing"
+    }
+  },
+  {
+    "id": "EX-AMB001",
+    "source": "memory/2026-03-27.md",
+    "turn_text": "Mixed environment signals observed: some Gate2 success routes existed while other agents/profiles still showed auth/embed failures. Hard to draw firm conclusions about overall system health.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Mixed environment signals: some Gate2 success routes coexisted with auth/embed failures on other agent profiles",
+      "participants": [],
+      "timestamp": "2026-03-27"
+    }
+  },
+  {
+    "id": "EX-AMB002",
+    "source": "memory/2026-03-22.md",
+    "turn_text": "The plugin loading tests had various export errors. Some were resolved by adjusting path imports. There might be more edge cases to investigate.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Plugin loading tests had various export errors; some resolved via path import adjustments, more edge cases remain",
+      "participants": [],
+      "timestamp": "2026-03-22"
+    }
+  },
+  {
+    "id": "EX-FALLBACK001",
+    "source": "memory/2026-03-23.md",
+    "turn_text": "The system is operating normally today.",
+    "expected": {
+      "kind": "episode",
+      "summary": "System operating normally",
+      "participants": [],
+      "timestamp": "2026-03-23"
+    }
+  },
+  {
+    "id": "EX-FALLBACK002",
+    "source": "memory/2026-03-25.md",
+    "turn_text": "Looking at some logs.",
+    "expected": {
+      "kind": "episode",
+      "summary": "Reviewed logs",
+      "participants": [],
+      "timestamp": "2026-03-25"
+    }
+  }
+]

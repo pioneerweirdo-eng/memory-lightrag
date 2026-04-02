@@ -29,13 +29,28 @@ export interface IntentConfig {
   scoredRouting?: IntentScoredRoutingConfig;
 }
 
+export interface RecallConfig {
+  /** Enable P2 graph-native evidence assembly instead of flat snippets. */
+  evidenceAssembly?: boolean;
+}
+
+export interface LlmConfig {
+  provider?: "openai" | "azure";
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+  timeout?: number;
+}
+
 export interface MemoryLightragConfig {
   lightrag?: LightragConfig;
+  llm?: LlmConfig;
   fallbackEnabled?: boolean;
   verbose?: boolean;
   domains?: DomainConfig;
   access?: AccessConfig;
   intent?: IntentConfig;
+  recall?: RecallConfig;
 }
 
 export const MemoryLightragConfigSchema = {
@@ -48,6 +63,17 @@ export const MemoryLightragConfigSchema = {
       properties: {
         baseUrl: { type: "string", default: "http://lightrag:9621" },
         apiKey: { type: "string" },
+        timeout: { type: "number", default: 30000 },
+      },
+    },
+    llm: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        provider: { type: "string", enum: ["openai", "azure"], default: "openai" },
+        baseUrl: { type: "string" },
+        apiKey: { type: "string" },
+        model: { type: "string", default: "gpt-4o-mini" },
         timeout: { type: "number", default: 30000 },
       },
     },
@@ -83,6 +109,13 @@ export const MemoryLightragConfigSchema = {
             minMargin: { type: "number", default: 0.35 },
           },
         },
+      },
+    },
+    recall: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        evidenceAssembly: { type: "boolean", default: false },
       },
     },
   },
