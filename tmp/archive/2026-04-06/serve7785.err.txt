@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "C:\Users\24787\.openclaw\workspace\agents\director\projects\memory-engine-plugin\memory-lightrag\tools\intent-classifier\serve.py", line 100, in <module>
+    main()
+  File "C:\Users\24787\.openclaw\workspace\agents\director\projects\memory-engine-plugin\memory-lightrag\tools\intent-classifier\serve.py", line 86, in main
+    server = ThreadingHTTPServer((args.host, args.port), make_handler(state))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\24787\AppData\Local\Programs\Python\Python312\Lib\socketserver.py", line 457, in __init__
+    self.server_bind()
+  File "D:\Users\24787\AppData\Local\Programs\Python\Python312\Lib\http\server.py", line 136, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "D:\Users\24787\AppData\Local\Programs\Python\Python312\Lib\socketserver.py", line 473, in server_bind
+    self.socket.bind(self.server_address)
+PermissionError: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。

@@ -1,0 +1,7 @@
+{"type": "startup", "ok": true, "host": "127.0.0.1", "port": 17985, "modelVersion": "hybrid_logreg:with_dense-v1", "backend": "hybrid_logreg", "denseRuntimeAvailable": true, "denseEmbeddingModel": "jina-embeddings-v4"}
+{"type": "predict_request", "query": "How does Caroline identify now?", "backend": "hybrid_logreg", "denseRuntimeAvailable": true, "shadowEnabled": false}
+{"type": "predict_response", "query": "How does Caroline identify now?", "intent": "ENTITY", "confidence": 0.3981111943721771, "coverageRatio": 0.2, "coverageAccepted": true, "denseUsed": true, "denseError": null}
+{"type": "predict_request", "query": "What triggered the deployment rollback?", "backend": "hybrid_logreg", "denseRuntimeAvailable": true, "shadowEnabled": false}
+{"type": "predict_response", "query": "What triggered the deployment rollback?", "intent": "WHEN", "confidence": 0.6581295132637024, "coverageRatio": 0.8, "coverageAccepted": true, "denseUsed": true, "denseError": null}
+{"type": "predict_request", "query": "为啥那天 agent thread 没有继续执行", "backend": "hybrid_logreg", "denseRuntimeAvailable": true, "shadowEnabled": false}
+{"type": "predict_response", "query": "为啥那天 agent thread 没有继续执行", "intent": "WHY", "confidence": 0.9993990659713745, "coverageRatio": 1.0, "coverageAccepted": true, "denseUsed": true, "denseError": null}
